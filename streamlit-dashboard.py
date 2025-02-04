@@ -7,6 +7,9 @@ import streamlit.components.v1 as components
 import numpy as np
 from textblob import TextBlob
 from sklearn.preprocessing import MinMaxScaler
+import random
+from faker import Faker
+import io
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
@@ -25,7 +28,7 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Funções de análise
+# Funções de análise (dados já existentes)
 def generate_sentiment_data():
     """Gera dados simulados de sentimento para produtos"""
     produtos = ['Hidratante', 'Protetor Solar', 'Sérum', 'Máscara Facial']
@@ -84,7 +87,48 @@ def generate_market_segments():
     
     return pd.DataFrame(data)
 
-# Carrega dados
+# Novas funções para gerar dados fictícios de tendências de mercado externas
+def generate_trends_market_data(num_records=100):
+    fake = Faker('pt_BR')
+    data_inicio = datetime.today() - timedelta(days=365)
+    data_fim = datetime.today()
+    categorias = ["Perfumaria", "Cosméticos", "Maquiagem", "Skin Care"]
+    fontes = ["Google Trends", "Redes Sociais", "Pesquisas de Mercado", "Consultoria Externa"]
+    tendencias = ["Crescente", "Estável", "Decrescente"]
+    lista = []
+    for _ in range(num_records):
+         random_date = data_inicio + timedelta(days=random.randint(0, (data_fim - data_inicio).days))
+         registro = {
+              'Data': random_date.date(),
+              'Categoria': random.choice(categorias),
+              'Tendência': random.choice(tendencias),
+              'Índice': round(random.uniform(0, 100), 2),
+              'Fonte': random.choice(fontes),
+              'Observações': fake.sentence(nb_words=10)
+         }
+         lista.append(registro)
+    return pd.DataFrame(lista)
+
+def generate_external_sentiment_data(num_records=50):
+    data_inicio = datetime.today() - timedelta(days=365)
+    data_fim = datetime.today()
+    categorias = ["Perfumaria", "Cosméticos", "Maquiagem", "Skin Care"]
+    plataformas = ["Twitter", "Instagram", "Facebook", "YouTube", "Blogs"]
+    sentimentos = ["Positivo", "Neutro", "Negativo"]
+    lista = []
+    for _ in range(num_records):
+         random_date = data_inicio + timedelta(days=random.randint(0, (data_fim - data_inicio).days))
+         registro = {
+              'Data': random_date.date(),
+              'Categoria': random.choice(categorias),
+              'Plataforma': random.choice(plataformas),
+              'Sentimento': random.choice(sentimentos),
+              'Volume': random.randint(100, 10000)
+         }
+         lista.append(registro)
+    return pd.DataFrame(lista)
+
+# Carrega dados existentes
 sentiment_data = generate_sentiment_data()
 segment_data = generate_market_segments()
 
@@ -144,8 +188,8 @@ with st.sidebar:
             else:
                 st.warning("pendente")
 
-# Main Content
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise"])
+# Main Content - agora com 4 abas
+tab1, tab2, tab3, tab4 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise", "🌐 Tendências Externas"])
 
 # Dashboard Tab
 with tab1:
@@ -259,6 +303,31 @@ with tab3:
     with col2:
         if st.button("📧 Compartilhar"):
             st.success("Link de compartilhamento gerado!")
+
+# Tendências Externas Tab - novos dados fictícios
+with tab4:
+    st.subheader("Dados de Tendências de Mercado Externas")
+    trends_df = generate_trends_market_data()
+    sentiment_ext_df = generate_external_sentiment_data()
+    
+    st.markdown("##### Tendências de Mercado")
+    st.dataframe(trends_df)
+    
+    st.markdown("##### Análise de Sentimento Externa")
+    st.dataframe(sentiment_ext_df)
+    
+    # Opção para download das planilhas em Excel
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+         trends_df.to_excel(writer, sheet_name="Tendências_Mercado", index=False)
+         sentiment_ext_df.to_excel(writer, sheet_name="Análise_Sentimento", index=False)
+    output.seek(0)
+    st.download_button(
+         label="Download Planilhas Fictícias",
+         data=output,
+         file_name="demo_MVP_tendencias_Natura.xlsx",
+         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
 
 # Footer
 st.markdown("---")
