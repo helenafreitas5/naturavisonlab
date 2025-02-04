@@ -15,25 +15,33 @@ ZAIA_AGENT_ID = "36828"
 
 # Função para interagir com a Zaia
 def get_zaia_response(prompt):
-    url = f"https://platform.zaia.app/api/chat/{ZAIA_AGENT_ID}/conversation"
+    url = f"https://platform.zaia.app/api/chat/{ZAIA_AGENT_ID}/messages"
     
     headers = {
         "Authorization": f"Bearer {ZAIA_API_KEY}",
-        "Content-Type": "application/json"
+        "Content-Type": "application/json",
+        "Accept": "application/json"
     }
     
     payload = {
-        "message": prompt
+        "text": prompt,
+        "type": "text"
     }
     
     try:
         response = requests.post(url, headers=headers, json=payload)
         if response.status_code == 200:
-            return response.json().get('response', 'Sem resposta do agente')
+            response_data = response.json()
+            if isinstance(response_data, list) and len(response_data) > 0:
+                return response_data[0].get('content', 'Sem resposta do agente')
+            return response_data.get('content', 'Sem resposta do agente')
         else:
-            return f"Erro na API: {response.status_code}"
+            st.error(f"Erro na API: {response.status_code}")
+            st.error(f"Resposta: {response.text}")
+            return "Desculpe, estou tendo problemas para me comunicar com o servidor. Por favor, tente novamente."
     except Exception as e:
-        return f"Erro ao conectar com a Zaia: {str(e)}"
+        st.error(f"Erro ao conectar com a Zaia: {str(e)}")
+        return "Desculpe, ocorreu um erro na comunicação. Por favor, tente novamente em alguns instantes."
 
 # Inicialização da sessão para o chat
 if 'messages' not in st.session_state:
@@ -203,5 +211,4 @@ st.markdown(
         Powered by Zaia AI</small>
     </div>
     """,
-    unsafe_allow_html=True
-)
+    unsafe_allow_html=True)
