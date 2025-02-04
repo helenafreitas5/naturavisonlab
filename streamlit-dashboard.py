@@ -3,54 +3,24 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
-import requests
-import json
+import streamlit.components.v1 as components
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Configuração da API Zaia
-ZAIA_API_KEY = "540b412c-e74a-4b84-b7bd-90b6a2c41b71"
-ZAIA_AGENT_ID = "36828"
-
-# Função para interagir com a Zaia
-def get_zaia_response(prompt):
-    url = "https://api.zaia.app/v1/agent/completions"
-    
-    headers = {
-        "x-api-key": ZAIA_API_KEY,
-        "Content-Type": "application/json"
-    }
-    
-    payload = {
-        "agent_id": ZAIA_AGENT_ID,
-        "text": prompt,
-        "conversation_id": "streamlit-dashboard",  # Identificador único da conversa
-        "stream": False
-    }
-    
-    try:
-        response = requests.post(url, headers=headers, json=payload)
-        st.write(f"Debug - Status: {response.status_code}")  # Debug info
-        st.write(f"Debug - Response: {response.text}")  # Debug info
-        
-        if response.status_code == 200:
-            response_data = response.json()
-            return response_data.get('completion', 'Sem resposta do agente')
-        else:
-            st.error(f"Erro na API: {response.status_code}")
-            return "Desculpe, estou tendo problemas para me comunicar com o servidor. Por favor, tente novamente."
-    except Exception as e:
-        st.error(f"Erro ao conectar: {str(e)}")
-        return "Desculpe, ocorreu um erro na comunicação. Por favor, tente novamente em alguns instantes."
-
-# Inicialização da sessão para o chat
-if 'messages' not in st.session_state:
-    st.session_state.messages = []
-    st.session_state.messages.append({
-        "role": "assistant",
-        "content": "Olá! Sou o assistente da Natura. Como posso ajudar você hoje?"
-    })
+# Widget HTML da Zaia
+def zaia_widget():
+    widget_html = """
+        <div>
+            <script>
+                window.Widget = {
+                    AgentURL: "https://platform.zaia.app/embed/chat/36828",
+                };
+            </script>
+            <script src="https://platform.zaia.app/script/widget-loader.js"></script>
+        </div>
+    """
+    components.html(widget_html, height=700)
 
 # Dados mockados
 @st.cache_data
@@ -151,33 +121,10 @@ with tab1:
                           title="Comparativo com Concorrentes")
         st.plotly_chart(fig_bench, use_container_width=True)
 
-# Chat Tab com Zaia
+# Chat Tab com widget da Zaia
 with tab2:
     st.subheader("💬 Chat com Assistente Natura")
-    
-    # Área de chat
-    chat_container = st.container()
-    
-    # Exibir mensagens anteriores
-    with chat_container:
-        for message in st.session_state.messages:
-            with st.chat_message(message["role"]):
-                st.write(message["content"])
-    
-    # Input do usuário
-    if prompt := st.chat_input("Como posso ajudar?"):
-        # Adicionar mensagem do usuário
-        st.session_state.messages.append({"role": "user", "content": prompt})
-        with st.chat_message("user"):
-            st.write(prompt)
-            
-        # Processar com a Zaia e mostrar resposta
-        with st.chat_message("assistant"):
-            message_placeholder = st.empty()
-            with st.spinner("Processando..."):
-                response = get_zaia_response(prompt)
-            message_placeholder.write(response)
-            st.session_state.messages.append({"role": "assistant", "content": response})
+    zaia_widget()
 
 # Análise Tab
 with tab3:
