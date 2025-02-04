@@ -5,8 +5,6 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import numpy as np
-from textblob import TextBlob
-from sklearn.preprocessing import MinMaxScaler
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
@@ -25,68 +23,35 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Funções de análise
-def generate_sentiment_data():
-    """Gera dados simulados de sentimento para produtos"""
-    produtos = ['Hidratante', 'Protetor Solar', 'Sérum', 'Máscara Facial']
-    marcas = ['Natura', 'Avon', 'Boticário']
+# Dados mockados
+@st.cache_data
+def load_mock_data():
+    # Dados de inovação e lançamentos
+    pipeline_data = pd.DataFrame([
+        {"empresa": "Boticário", "estagio": "Em Pesquisa", "projetos": 12},
+        {"empresa": "Boticário", "estagio": "Em Desenvolvimento", "projetos": 8},
+        {"empresa": "Boticário", "estagio": "Em Lançamento", "projetos": 3},
+        {"empresa": "Natura", "estagio": "Em Pesquisa", "projetos": 15},
+        {"empresa": "Natura", "estagio": "Em Desenvolvimento", "projetos": 6},
+        {"empresa": "Natura", "estagio": "Em Lançamento", "projetos": 4},
+        {"empresa": "Avon", "estagio": "Em Pesquisa", "projetos": 10},
+        {"empresa": "Avon", "estagio": "Em Desenvolvimento", "projetos": 7},
+        {"empresa": "Avon", "estagio": "Em Lançamento", "projetos": 2}
+    ])
     
-    reviews = []
-    np.random.seed(42)
+    # Dados de tecnologias
+    tech_data = pd.DataFrame([
+        {"area": "Biotecnologia", "investimento": 85, "crescimento": 15},
+        {"area": "IA e Personalização", "investimento": 78, "crescimento": 25},
+        {"area": "Nanotecnologia", "investimento": 65, "crescimento": 10},
+        {"area": "Sustentabilidade", "investimento": 92, "crescimento": 30},
+        {"area": "Embalagens Inteligentes", "investimento": 70, "crescimento": 20}
+    ])
     
-    for produto in produtos:
-        for marca in marcas:
-            n_reviews = np.random.randint(50, 200)
-            sentiments = np.random.normal(0.7, 0.2, n_reviews)
-            sentiments = np.clip(sentiments, -1, 1)
-            
-            for sentiment in sentiments:
-                reviews.append({
-                    'produto': produto,
-                    'marca': marca,
-                    'sentimento': sentiment,
-                    'data': pd.Timestamp('2024-01-01') + pd.Timedelta(days=np.random.randint(0, 30))
-                })
-    
-    return pd.DataFrame(reviews)
-
-def generate_market_segments():
-    """Gera dados simulados de segmentação de mercado"""
-    segments = {
-        'Skincare': {
-            'Natura': 35,
-            'Avon': 25,
-            'Boticário': 20,
-            'Outros': 20
-        },
-        'Maquiagem': {
-            'Natura': 30,
-            'Avon': 28,
-            'Boticário': 25,
-            'Outros': 17
-        },
-        'Perfumaria': {
-            'Natura': 40,
-            'Avon': 20,
-            'Boticário': 25,
-            'Outros': 15
-        }
-    }
-    
-    data = []
-    for segment, shares in segments.items():
-        for brand, share in shares.items():
-            data.append({
-                'segmento': segment,
-                'marca': brand,
-                'share': share
-            })
-    
-    return pd.DataFrame(data)
+    return pipeline_data, tech_data
 
 # Carrega dados
-sentiment_data = generate_sentiment_data()
-segment_data = generate_market_segments()
+pipeline_data, tech_data = load_mock_data()
 
 # Header
 st.title("🎯 Plataforma IC Natura")
@@ -145,111 +110,192 @@ with st.sidebar:
                 st.warning("pendente")
 
 # Main Content
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise"])
+tabs = st.tabs(["📊 Dashboard", "🔬 Inovação", "💬 Assistente IA", "📈 Studio"])
 
 # Dashboard Tab
-with tab1:
+with tabs[0]:
+    # Métricas Principais
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric("Patentes (2024)", "127", "15%")
+    with col2:
+        st.metric("Projetos Ativos", "43", "8%")
+    with col3:
+        st.metric("Novas Tecnologias", "28", "12%")
+    with col4:
+        st.metric("Parcerias", "15", "20%")
+
+    st.markdown("---")
+    
+    # Radar de Inovação
+    st.subheader("🔍 Radar de Inovação")
+    
     col1, col2 = st.columns(2)
     
     with col1:
-        st.subheader("Análise de Sentimento")
-        # Gráfico de sentimento por marca
-        fig_sentiment = px.box(
-            sentiment_data,
-            x='marca',
-            y='sentimento',
-            color='marca',
-            title='Sentimento por Marca'
-        )
-        st.plotly_chart(fig_sentiment, use_container_width=True)
+        st.markdown("#### 🆕 Últimos Lançamentos")
+        launches = [
+            {
+                "marca": "Boticário",
+                "produto": "Linha Botik Skincare Tech",
+                "data": "Jan 2024",
+                "descrição": "Produtos com tecnologia de microencapsulamento",
+                "tipo": "Novo Produto"
+            },
+            {
+                "marca": "Avon",
+                "produto": "Power Stay Matte",
+                "data": "Jan 2024",
+                "descrição": "Base com tecnologia de longa duração",
+                "tipo": "Novo Produto"
+            },
+            {
+                "marca": "Natura",
+                "produto": "Chronos Biome",
+                "data": "Dez 2023",
+                "descrição": "Tecnologia de proteção do microbioma",
+                "tipo": "Nova Tecnologia"
+            }
+        ]
         
-        st.subheader("Market Share")
-        fig_market = px.treemap(
-            segment_data,
-            path=['segmento', 'marca'],
-            values='share',
-            title='Participação de Mercado por Segmento'
-        )
-        st.plotly_chart(fig_market, use_container_width=True)
+        for launch in launches:
+            with st.container():
+                st.markdown(f"""
+                **{launch['marca']} - {launch['produto']}**  
+                📅 {launch['data']}  
+                {launch['descrição']}  
+                *Tipo: {launch['tipo']}*
+                """)
+                st.markdown("---")
     
     with col2:
-        st.subheader("Correlação entre Marcas")
-        # Mapa de calor de correlações
-        correlation_matrix = pd.pivot_table(
-            segment_data,
-            values='share',
-            index='segmento',
-            columns='marca'
-        ).corr()
+        st.markdown("#### 🤝 Parcerias e Movimentos Estratégicos")
+        partnerships = [
+            {
+                "empresa": "Boticário",
+                "parceiro": "L'Oréal Research",
+                "tipo": "P&D",
+                "status": "Ativa",
+                "descrição": "Desenvolvimento de ativos sustentáveis"
+            },
+            {
+                "empresa": "Natura",
+                "parceiro": "MIT Labs",
+                "tipo": "Inovação",
+                "status": "Em negociação",
+                "descrição": "Pesquisa em biotecnologia"
+            },
+            {
+                "empresa": "Avon",
+                "parceiro": "Tecnologia K-Beauty",
+                "tipo": "Comercial",
+                "status": "Ativa",
+                "descrição": "Expansão linha coreana"
+            }
+        ]
         
-        fig_heatmap = go.Figure(data=go.Heatmap(
-            z=correlation_matrix,
-            x=correlation_matrix.columns,
-            y=correlation_matrix.index,
-            text=correlation_matrix.round(2),
-            texttemplate='%{text}',
-            textfont={"size": 12},
-            hoverongaps=False,
-            colorscale='RdBu'
-        ))
-        
-        fig_heatmap.update_layout(
-            title="Correlação entre Marcas por Segmento",
-            xaxis_title="Marca",
-            yaxis_title="Marca",
-            height=400
-        )
-        
-        st.plotly_chart(fig_heatmap, use_container_width=True)
-        
-        st.subheader("Performance por Segmento")
-        fig_performance = px.bar(
-            segment_data.groupby('segmento')['share'].sum().reset_index(),
-            x='segmento',
-            y='share',
-            title='Share Total por Segmento',
-            color='segmento'
-        )
-        st.plotly_chart(fig_performance, use_container_width=True)
+        for partner in partnerships:
+            with st.container():
+                col_info, col_status = st.columns([3,1])
+                with col_info:
+                    st.markdown(f"""
+                    **{partner['empresa']} + {partner['parceiro']}**  
+                    Tipo: {partner['tipo']}  
+                    {partner['descrição']}
+                    """)
+                with col_status:
+                    if partner['status'] == 'Ativa':
+                        st.success('Ativa')
+                    else:
+                        st.warning('Em negociação')
+                st.markdown("---")
 
-# Chat Tab com widget da Zaia
-with tab2:
+# Tab de Inovação
+with tabs[1]:
+    st.subheader("🔬 Análise de Inovação")
+    
+    # Pipeline de Inovação
+    st.markdown("#### 📈 Pipeline de Inovação por Empresa")
+    
+    fig_pipeline = px.bar(
+        pipeline_data,
+        x="estagio",
+        y="projetos",
+        color="empresa",
+        title="Pipeline de Inovação por Empresa",
+        barmode="group"
+    )
+    
+    st.plotly_chart(fig_pipeline, use_container_width=True)
+    
+    # Mapa de Tecnologias
+    st.markdown("#### 🔍 Mapa de Tecnologias Emergentes")
+    
+    fig_tech = px.pie(
+        tech_data,
+        values="investimento",
+        names="area",
+        title="Distribuição de Investimentos em Tecnologia"
+    )
+    
+    st.plotly_chart(fig_tech, use_container_width=True)
+    
+    # Monitoramento de Startups
+    st.markdown("#### 🚀 Radar de Startups")
+    startups = [
+        {"nome": "BeautyTech", "foco": "IA para personalização", "interesse": "Alto"},
+        {"nome": "EcoPackaging", "foco": "Embalagens sustentáveis", "interesse": "Médio"},
+        {"nome": "BioActives", "foco": "Biotecnologia", "interesse": "Alto"}
+    ]
+    
+    for startup in startups:
+        with st.container():
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.markdown(f"""
+                **{startup['nome']}**  
+                Foco: {startup['foco']}
+                """)
+            with col2:
+                if startup['interesse'] == 'Alto':
+                    st.success('Alto Interesse')
+                else:
+                    st.warning('Médio Interesse')
+
+# Chat Tab
+with tabs[2]:
     st.subheader("💬 Chat com Assistente Natura")
     zaia_widget()
 
-# Análise Tab
-with tab3:
+# Studio Tab
+with tabs[3]:
     st.subheader("Studio")
     
     # Quick Dashboard
     st.markdown("#### 🎯 Dashboard Rápido")
-    dash_container = st.container()
-    with dash_container:
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            if st.button("📊 Análise de Mercado"):
-                st.metric("Market Share", "35%", "2.5%")
-                
-        with col2:
-            if st.button("💭 Análise de Sentimento"):
-                st.metric("Sentimento Médio", "0.72", "0.05")
-                
-        with col3:
-            if st.button("📈 Previsões"):
-                st.metric("Tendência", "Crescente", "15%")
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        if st.button("📊 Análise de Mercado"):
+            st.metric("Market Share", "35%", "2.5%")
+    with col2:
+        if st.button("🔬 Pipeline de Inovação"):
+            st.metric("Projetos Ativos", "43", "8%")
+    with col3:
+        if st.button("🚀 Startups"):
+            st.metric("Oportunidades", "12", "3")
     
     # Report Generation
     st.markdown("#### 📑 Relatórios")
-    with st.expander("📊 Análise de Performance"):
-        st.write("Análise de performance do último trimestre:")
-        st.write("• Market share cresceu 2.5% vs trimestre anterior")
-        st.write("• Sentimento positivo em 72% das menções")
-        st.write("• Liderança em 2 de 3 segmentos principais")
+    with st.expander("📊 Análise de Inovação"):
+        st.write("Análise do último trimestre:")
+        st.write("• 15 novos projetos iniciados")
+        st.write("• 3 parcerias estratégicas estabelecidas")
+        st.write("• 5 tecnologias em fase final de desenvolvimento")
     
     with st.expander("💡 Recomendações"):
-        st.write("• Investir em segmentos com maior potencial")
-        st.write("• Monitorar ações da concorrência")
-        st.write("• Fortalecer presença digital")
+        st.write("• Acelerar projetos em biotecnologia")
+        st.write("• Explorar parcerias com startups")
+        st.write("• Investir em personalização")
     
     # Botões de ação
     col1, col2 = st.columns(2)
