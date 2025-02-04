@@ -9,3 +9,4 @@ protobuf==4.25.2
 packaging==23.2
 jsonschema==4.21.1
 typing_extensions==4.9.0
+pytrends==4.9.0
