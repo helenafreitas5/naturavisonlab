@@ -2,70 +2,13 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
-from datetime import datetime, timedelta
+from datetime import datetime
 import streamlit.components.v1 as components
-from pytrends.request import TrendReq
-import time
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Função melhorada para Google Trends
-@st.cache_data(ttl=3600)
-def get_google_trends_data():
-    try:
-        # Inicialização simplificada do pytrends
-        pytrends = TrendReq(hl='pt-BR')
-        
-        # Keywords organizadas por categoria
-        categories = {
-            'Tipos de Pele': ['pele oleosa', 'pele seca', 'pele mista'],
-            'Tratamentos': ['skincare', 'anti idade', 'hidratação'],
-            'Produtos': ['natura', 'avon', 'boticario']
-        }
-        
-        results = {}
-        
-        for category, keywords in categories.items():
-            # Evitar rate limiting
-            time.sleep(2)
-            
-            try:
-                # Interest Over Time
-                pytrends.build_payload(
-                    keywords,
-                    timeframe='today 12-m',
-                    geo='BR'
-                )
-                
-                # Dados de interesse ao longo do tempo
-                interest_over_time = pytrends.interest_over_time()
-                if 'isPartial' in interest_over_time.columns:
-                    interest_over_time = interest_over_time.drop('isPartial', axis=1)
-                
-                # Interesse por região
-                interest_by_region = pytrends.interest_by_region(resolution='REGION', inc_low_vol=True)
-                
-                # Tópicos e consultas relacionadas
-                related_queries = pytrends.related_queries()
-                
-                results[category] = {
-                    'over_time': interest_over_time,
-                    'by_region': interest_by_region,
-                    'related_queries': related_queries
-                }
-                
-            except Exception as e:
-                st.warning(f"Erro ao processar categoria {category}: {str(e)}")
-                continue
-        
-        return results
-    
-    except Exception as e:
-        st.error(f"Erro ao inicializar Google Trends: {str(e)}")
-        return None
-
-# Widget da Zaia
+# Widget HTML da Zaia
 def zaia_widget():
     widget_html = """
         <div>
@@ -79,97 +22,133 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Carregar dados
-trends_data = get_google_trends_data()
-
-# Interface principal
-st.title("🎯 Plataforma IC Natura")
-
-# Sidebar
-with st.sidebar:
-    st.header("Configurações de Análise")
+# Dados mockados
+@st.cache_data
+def load_mock_data():
+    benchmark_data = pd.DataFrame([
+        {"category": "Skincare", "natura": 85, "avon": 75, "boticario": 80},
+        {"category": "Makeup", "natura": 78, "avon": 82, "boticario": 85},
+        {"category": "Perfumes", "natura": 90, "avon": 85, "boticario": 88}
+    ])
     
-    if trends_data:
-        selected_category = st.selectbox(
-            "Categoria",
-            options=list(trends_data.keys()),
-            key='category_selector'
-        )
-        
-        time_range = st.select_slider(
-            "Período",
-            options=['1 mês', '3 meses', '6 meses', '12 meses'],
-            value='3 meses',
-            key='time_range_selector'
-        )
+    trends_data = pd.DataFrame([
+        {"month": "Jan", "skincare": 65, "makeup": 45},
+        {"month": "Feb", "skincare": 70, "makeup": 52},
+        {"month": "Mar", "skincare": 85, "makeup": 58}
+    ])
+    
+    market_data = pd.DataFrame([
+        {"name": "Natura", "value": 35},
+        {"name": "Avon", "value": 25},
+        {"name": "Boticário", "value": 20}
+    ])
+    
+    performance_data = pd.DataFrame([
+        {"category": "Skincare", "atual": 92, "meta": 85},
+        {"category": "Makeup", "atual": 78, "meta": 80}
+    ])
+    
+    return benchmark_data, trends_data, market_data, performance_data
 
-# Tabs principais
-tab1, tab2, tab3 = st.tabs(["📊 Tendências", "💬 Assistente IA", "📈 Análise Regional"])
+# Carrega dados
+benchmark_data, trends_data, market_data, performance_data = load_mock_data()
 
-# Tab de Tendências
+# Header
+col1, col2, col3 = st.columns([2,6,2])
+with col2:
+    st.title("🎯 Plataforma IC Natura")
+
+# Sidebar - Fontes de Dados
+with st.sidebar:
+    st.header("Fontes de Dados")
+    
+    # Busca
+    search = st.text_input("🔍 Buscar fontes...", "")
+    
+    # Filtros
+    col1, col2 = st.columns(2)
+    with col1:
+        st.button("🔍 Filtrar")
+    with col2:
+        st.button("📅 Data")
+    
+    # Lista de fontes
+    st.subheader("Fontes Disponíveis")
+    sources = {
+        "Google Trends": True,
+        "Social Media": True,
+        "Market Reports": False,
+        "News Feed": True
+    }
+    
+    for source, active in sources.items():
+        col1, col2 = st.columns([3,1])
+        with col1:
+            st.checkbox(source, value=active)
+        with col2:
+            if active:
+                st.success("ativo")
+            else:
+                st.warning("pendente")
+
+# Main Content
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise"])
+
+# Dashboard Tab
 with tab1:
-    if trends_data and selected_category in trends_data:
-        data = trends_data[selected_category]
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.subheader("Tendências de Mercado")
+        fig_trends = px.line(trends_data, x="month", y=["skincare", "makeup"],
+                           title="Evolução de Categorias")
+        st.plotly_chart(fig_trends, use_container_width=True)
         
-        # Gráfico de tendências
-        st.subheader(f"Tendências de Busca - {selected_category}")
-        if 'over_time' in data and not data['over_time'].empty:
-            fig = px.line(
-                data['over_time'],
-                title=f"Interesse ao longo do tempo - {selected_category}",
-                labels={'value': 'Interesse de Busca', 'date': 'Data'}
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Métricas de comparação
-            if not data['over_time'].empty:
-                columns = st.columns(len(data['over_time'].columns))
-                for idx, keyword in enumerate(data['over_time'].columns):
-                    with columns[idx]:
-                        current = data['over_time'][keyword].iloc[-1]
-                        previous = data['over_time'][keyword].iloc[-2]
-                        delta = ((current - previous) / previous * 100) if previous != 0 else 0
-                        
-                        st.metric(
-                            label=keyword,
-                            value=f"{current:.0f}",
-                            delta=f"{delta:.1f}%"
-                        )
+        st.subheader("Market Share")
+        fig_market = px.pie(market_data, values="value", names="name",
+                          title="Participação de Mercado")
+        st.plotly_chart(fig_market, use_container_width=True)
+    
+    with col2:
+        st.subheader("Performance vs Meta")
+        fig_perf = px.bar(performance_data, x="category", y=["atual", "meta"],
+                         barmode="group", title="Performance por Categoria")
+        st.plotly_chart(fig_perf, use_container_width=True)
         
-        # Queries relacionadas
-        if 'related_queries' in data:
-            st.subheader("Buscas Relacionadas")
-            for keyword, queries in data['related_queries'].items():
-                if queries['top'] is not None:
-                    st.write(f"**Top buscas para {keyword}:**")
-                    st.dataframe(queries['top'].head())
+        st.subheader("Benchmark Competitivo")
+        fig_bench = px.bar(benchmark_data, x="category", 
+                          y=["natura", "avon", "boticario"],
+                          title="Comparativo com Concorrentes")
+        st.plotly_chart(fig_bench, use_container_width=True)
 
-# Tab do Assistente
+# Chat Tab com widget da Zaia
 with tab2:
     st.subheader("💬 Chat com Assistente Natura")
     zaia_widget()
 
-# Tab de Análise Regional
+# Análise Tab
 with tab3:
-    if trends_data and selected_category in trends_data:
-        st.subheader(f"Análise Regional - {selected_category}")
-        
-        data = trends_data[selected_category]
-        if 'by_region' in data and not data['by_region'].empty:
-            # Mapa de calor por região
-            fig = px.choropleth(
-                data['by_region'],
-                locations=data['by_region'].index,
-                scope="south america",
-                color=data['by_region'].columns[0],
-                center={"lat": -14.2350, "lon": -51.9253},
-                title=f"Interesse por Região - {data['by_region'].columns[0]}"
-            )
-            st.plotly_chart(fig, use_container_width=True)
-            
-            # Tabela de dados regionais
-            st.subheader("Dados por Região")
-            st.dataframe(data['by_region'])
+    st.subheader("Relatório Automático")
+    
+    with st.expander("📊 Análise de Performance"):
+        st.write("Análise de performance do último trimestre:")
+        st.write("• Crescimento em Skincare: +15% vs trimestre anterior")
+        st.write("• Oportunidade em Makeup: -2% vs meta estabelecida")
+        st.write("• Destaque para produtos coreanos: +45% em buscas")
+    
+    with st.expander("💡 Recomendações"):
+        st.write("• Aumentar investimento em linha de Skincare")
+        st.write("• Revisar estratégia de Makeup")
+        st.write("• Explorar parcerias com marcas coreanas")
+    
+    # Botões de ação
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button("📤 Exportar Relatório"):
+            st.success("Relatório exportado com sucesso!")
+    with col2:
+        if st.button("📧 Compartilhar"):
+            st.success("Link de compartilhamento gerado!")
 
 # Footer
 st.markdown("---")
@@ -180,5 +159,4 @@ st.markdown(
         Powered by Zaia AI</small>
     </div>
     """,
-    unsafe_allow_html=True
-)
+    unsafe_allow_html=True)
