@@ -14,7 +14,8 @@ st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 @st.cache_data(ttl=3600)
 def get_google_trends_data():
     try:
-        pytrends = TrendReq(hl='pt-BR', timeout=(10,25), retries=2, backoff_factor=0.1)
+        # Inicialização simplificada do pytrends
+        pytrends = TrendReq(hl='pt-BR')
         
         # Keywords organizadas por categoria
         categories = {
@@ -27,42 +28,41 @@ def get_google_trends_data():
         
         for category, keywords in categories.items():
             # Evitar rate limiting
-            time.sleep(1)
+            time.sleep(2)
             
-            # Interest Over Time
-            pytrends.build_payload(
-                keywords,
-                cat=0,
-                timeframe='today 12-m',
-                geo='BR',
-                gprop=''
-            )
-            
-            # Dados de interesse ao longo do tempo
-            interest_over_time = pytrends.interest_over_time()
-            if 'isPartial' in interest_over_time.columns:
-                interest_over_time = interest_over_time.drop('isPartial', axis=1)
-            
-            # Interesse por região
-            interest_by_region = pytrends.interest_by_region(resolution='REGION', inc_low_vol=True)
-            
-            # Tópicos relacionados
-            related_topics = pytrends.related_topics()
-            
-            # Consultas relacionadas
-            related_queries = pytrends.related_queries()
-            
-            results[category] = {
-                'over_time': interest_over_time,
-                'by_region': interest_by_region,
-                'related_topics': related_topics,
-                'related_queries': related_queries
-            }
-            
+            try:
+                # Interest Over Time
+                pytrends.build_payload(
+                    keywords,
+                    timeframe='today 12-m',
+                    geo='BR'
+                )
+                
+                # Dados de interesse ao longo do tempo
+                interest_over_time = pytrends.interest_over_time()
+                if 'isPartial' in interest_over_time.columns:
+                    interest_over_time = interest_over_time.drop('isPartial', axis=1)
+                
+                # Interesse por região
+                interest_by_region = pytrends.interest_by_region(resolution='REGION', inc_low_vol=True)
+                
+                # Tópicos e consultas relacionadas
+                related_queries = pytrends.related_queries()
+                
+                results[category] = {
+                    'over_time': interest_over_time,
+                    'by_region': interest_by_region,
+                    'related_queries': related_queries
+                }
+                
+            except Exception as e:
+                st.warning(f"Erro ao processar categoria {category}: {str(e)}")
+                continue
+        
         return results
     
     except Exception as e:
-        st.error(f"Erro ao buscar dados do Google Trends: {str(e)}")
+        st.error(f"Erro ao inicializar Google Trends: {str(e)}")
         return None
 
 # Widget da Zaia
@@ -113,39 +113,36 @@ with tab1:
         
         # Gráfico de tendências
         st.subheader(f"Tendências de Busca - {selected_category}")
-        fig = px.line(
-            data['over_time'],
-            title=f"Interesse ao longo do tempo - {selected_category}",
-            labels={'value': 'Interesse de Busca', 'date': 'Data'}
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Métricas de comparação
-        col1, col2, col3 = st.columns(3)
-        
-        for idx, keyword in enumerate(data['over_time'].columns):
-            with col1 if idx % 3 == 0 else col2 if idx % 3 == 1 else col3:
-                current = data['over_time'][keyword].iloc[-1]
-                previous = data['over_time'][keyword].iloc[-2]
-                delta = ((current - previous) / previous * 100) if previous != 0 else 0
-                
-                st.metric(
-                    label=keyword,
-                    value=f"{current:.0f}",
-                    delta=f"{delta:.1f}%"
-                )
+        if 'over_time' in data and not data['over_time'].empty:
+            fig = px.line(
+                data['over_time'],
+                title=f"Interesse ao longo do tempo - {selected_category}",
+                labels={'value': 'Interesse de Busca', 'date': 'Data'}
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Métricas de comparação
+            if not data['over_time'].empty:
+                columns = st.columns(len(data['over_time'].columns))
+                for idx, keyword in enumerate(data['over_time'].columns):
+                    with columns[idx]:
+                        current = data['over_time'][keyword].iloc[-1]
+                        previous = data['over_time'][keyword].iloc[-2]
+                        delta = ((current - previous) / previous * 100) if previous != 0 else 0
+                        
+                        st.metric(
+                            label=keyword,
+                            value=f"{current:.0f}",
+                            delta=f"{delta:.1f}%"
+                        )
         
         # Queries relacionadas
-        st.subheader("Buscas Relacionadas")
-        cols = st.columns(len(data['related_queries']))
-        
-        for (keyword, queries), col in zip(data['related_queries'].items(), cols):
-            with col:
-                st.write(f"**{keyword}**")
+        if 'related_queries' in data:
+            st.subheader("Buscas Relacionadas")
+            for keyword, queries in data['related_queries'].items():
                 if queries['top'] is not None:
+                    st.write(f"**Top buscas para {keyword}:**")
                     st.dataframe(queries['top'].head())
-                else:
-                    st.write("Sem dados suficientes")
 
 # Tab do Assistente
 with tab2:
@@ -157,20 +154,22 @@ with tab3:
     if trends_data and selected_category in trends_data:
         st.subheader(f"Análise Regional - {selected_category}")
         
-        # Mapa de calor por região
-        fig = px.choropleth(
-            data['by_region'],
-            locations=data['by_region'].index,
-            scope="south america",
-            color=data['by_region'].columns[0],
-            center={"lat": -14.2350, "lon": -51.9253},
-            title=f"Interesse por Região - {data['by_region'].columns[0]}"
-        )
-        st.plotly_chart(fig, use_container_width=True)
-        
-        # Tabela de dados regionais
-        st.subheader("Dados por Região")
-        st.dataframe(data['by_region'])
+        data = trends_data[selected_category]
+        if 'by_region' in data and not data['by_region'].empty:
+            # Mapa de calor por região
+            fig = px.choropleth(
+                data['by_region'],
+                locations=data['by_region'].index,
+                scope="south america",
+                color=data['by_region'].columns[0],
+                center={"lat": -14.2350, "lon": -51.9253},
+                title=f"Interesse por Região - {data['by_region'].columns[0]}"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+            
+            # Tabela de dados regionais
+            st.subheader("Dados por Região")
+            st.dataframe(data['by_region'])
 
 # Footer
 st.markdown("---")
