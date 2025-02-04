@@ -3,11 +3,47 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 from datetime import datetime
+import requests
+import json
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Dados mockados (os mesmos do React)
+# Configuração da API Zaia
+ZAIA_API_KEY = "540b412c-e74a-4b84-b7bd-90b6a2c41b71"
+ZAIA_AGENT_ID = "36828"
+
+# Função para interagir com a Zaia
+def get_zaia_response(prompt):
+    url = f"https://platform.zaia.app/api/chat/{ZAIA_AGENT_ID}/conversation"
+    
+    headers = {
+        "Authorization": f"Bearer {ZAIA_API_KEY}",
+        "Content-Type": "application/json"
+    }
+    
+    payload = {
+        "message": prompt
+    }
+    
+    try:
+        response = requests.post(url, headers=headers, json=payload)
+        if response.status_code == 200:
+            return response.json().get('response', 'Sem resposta do agente')
+        else:
+            return f"Erro na API: {response.status_code}"
+    except Exception as e:
+        return f"Erro ao conectar com a Zaia: {str(e)}"
+
+# Inicialização da sessão para o chat
+if 'messages' not in st.session_state:
+    st.session_state.messages = []
+    st.session_state.messages.append({
+        "role": "assistant",
+        "content": "Olá! Sou o assistente da Natura. Como posso ajudar você hoje?"
+    })
+
+# Dados mockados
 @st.cache_data
 def load_mock_data():
     benchmark_data = pd.DataFrame([
@@ -77,7 +113,7 @@ with st.sidebar:
                 st.warning("pendente")
 
 # Main Content
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Chat", "📈 Análise"])
+tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise"])
 
 # Dashboard Tab
 with tab1:
@@ -106,18 +142,33 @@ with tab1:
                           title="Comparativo com Concorrentes")
         st.plotly_chart(fig_bench, use_container_width=True)
 
-# Chat Tab
+# Chat Tab com Zaia
 with tab2:
-    st.subheader("Chat de Análise")
+    st.subheader("💬 Chat com Assistente Natura")
     
-    # Mensagens do sistema
-    st.info("✓ Fontes conectadas: Google Trends, Social Media")
-    st.success("Identifiquei tendências relevantes do setor de beleza. A busca por 'skincare coreano' aumentou 45% no último trimestre.")
+    # Área de chat
+    chat_container = st.container()
+    
+    # Exibir mensagens anteriores
+    with chat_container:
+        for message in st.session_state.messages:
+            with st.chat_message(message["role"]):
+                st.write(message["content"])
     
     # Input do usuário
-    user_input = st.text_input("Digite sua pergunta ou comando de análise...")
-    if st.button("Enviar"):
-        st.write("Você: " + user_input)
+    if prompt := st.chat_input("Como posso ajudar?"):
+        # Adicionar mensagem do usuário
+        st.session_state.messages.append({"role": "user", "content": prompt})
+        with st.chat_message("user"):
+            st.write(prompt)
+            
+        # Processar com a Zaia e mostrar resposta
+        with st.chat_message("assistant"):
+            message_placeholder = st.empty()
+            with st.spinner("Processando..."):
+                response = get_zaia_response(prompt)
+            message_placeholder.write(response)
+            st.session_state.messages.append({"role": "assistant", "content": response})
 
 # Análise Tab
 with tab3:
@@ -145,4 +196,12 @@ with tab3:
 
 # Footer
 st.markdown("---")
-st.markdown("*Dados atualizados em: {}*".format(datetime.now().strftime("%d/%m/%Y %H:%M")))
+st.markdown(
+    f"""
+    <div style='text-align: center'>
+        <small>Última atualização: {datetime.now().strftime('%d/%m/%Y %H:%M')} | 
+        Powered by Zaia AI</small>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
