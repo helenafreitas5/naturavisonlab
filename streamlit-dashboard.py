@@ -9,33 +9,34 @@ import json
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Função para interagir com a Zaia via Webhook
+# Configuração da API Zaia
+ZAIA_API_KEY = "540b412c-e74a-4b84-b7bd-90b6a2c41b71"
+ZAIA_AGENT_ID = "36828"
+
+# Função para interagir com a Zaia
 def get_zaia_response(prompt):
-    url = "https://api.zaia.app/v1/webhook/agent-incoming-webhook-event/create"
-    
-    params = {
-        "agentIncomingWebhookId": "2469",
-        "key": "b58b7e25-5022-4d36-930a-a6c953b8a70b"
-    }
+    url = "https://api.zaia.app/v1/agent/completions"
     
     headers = {
+        "x-api-key": ZAIA_API_KEY,
         "Content-Type": "application/json"
     }
     
     payload = {
-        "message": prompt,
-        "sessionId": "streamlit-dashboard",
-        "source": "dashboard"
+        "agent_id": ZAIA_AGENT_ID,
+        "text": prompt,
+        "conversation_id": "streamlit-dashboard",  # Identificador único da conversa
+        "stream": False
     }
     
     try:
-        response = requests.post(url, params=params, headers=headers, json=payload)
+        response = requests.post(url, headers=headers, json=payload)
         st.write(f"Debug - Status: {response.status_code}")  # Debug info
         st.write(f"Debug - Response: {response.text}")  # Debug info
         
         if response.status_code == 200:
             response_data = response.json()
-            return response_data.get('message', 'Sem resposta do agente')
+            return response_data.get('completion', 'Sem resposta do agente')
         else:
             st.error(f"Erro na API: {response.status_code}")
             return "Desculpe, estou tendo problemas para me comunicar com o servidor. Por favor, tente novamente."
