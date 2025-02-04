@@ -5,6 +5,9 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import numpy as np
+import requests
+from datetime import datetime, timedelta
+import json
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
@@ -23,288 +26,270 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Dados mockados
-@st.cache_data
-def load_mock_data():
-    # Dados de inovação e lançamentos
-    pipeline_data = pd.DataFrame([
-        {"empresa": "Boticário", "estagio": "Em Pesquisa", "projetos": 12},
-        {"empresa": "Boticário", "estagio": "Em Desenvolvimento", "projetos": 8},
-        {"empresa": "Boticário", "estagio": "Em Lançamento", "projetos": 3},
-        {"empresa": "Natura", "estagio": "Em Pesquisa", "projetos": 15},
-        {"empresa": "Natura", "estagio": "Em Desenvolvimento", "projetos": 6},
-        {"empresa": "Natura", "estagio": "Em Lançamento", "projetos": 4},
-        {"empresa": "Avon", "estagio": "Em Pesquisa", "projetos": 10},
-        {"empresa": "Avon", "estagio": "Em Desenvolvimento", "projetos": 7},
-        {"empresa": "Avon", "estagio": "Em Lançamento", "projetos": 2}
-    ])
-    
-    # Dados de tecnologias
-    tech_data = pd.DataFrame([
-        {"area": "Biotecnologia", "investimento": 85, "crescimento": 15},
-        {"area": "IA e Personalização", "investimento": 78, "crescimento": 25},
-        {"area": "Nanotecnologia", "investimento": 65, "crescimento": 10},
-        {"area": "Sustentabilidade", "investimento": 92, "crescimento": 30},
-        {"area": "Embalagens Inteligentes", "investimento": 70, "crescimento": 20}
-    ])
-    
-    return pipeline_data, tech_data
+# Simulação de dados do LinkedIn e Google Alerts
+def get_linkedin_data():
+    linkedin_posts = [
+        {
+            "data": "2024-02-04",
+            "empresa": "O Boticário",
+            "tipo": "Post",
+            "conteudo": "Lançamento da nova linha sustentável",
+            "engajamento": 1500,
+            "classificacao": "Bomba",
+            "relevancia": 5,
+            "link": "https://linkedin.com/post1",
+            "palavras_chave": ["sustentabilidade", "inovação", "lançamento"]
+        },
+        {
+            "data": "2024-02-03",
+            "empresa": "Natura",
+            "tipo": "Artigo",
+            "conteudo": "Parceria com startup de biotecnologia",
+            "engajamento": 800,
+            "classificacao": "Ação Ninja",
+            "relevancia": 4,
+            "link": "https://linkedin.com/post2",
+            "palavras_chave": ["biotecnologia", "parceria", "inovação"]
+        }
+    ]
+    return pd.DataFrame(linkedin_posts)
+
+def get_google_alerts():
+    alerts = [
+        {
+            "data": "2024-02-04",
+            "fonte": "Portal Cosméticos",
+            "titulo": "O Boticário investe em nova fábrica",
+            "conteudo": "Investimento de R$ 500 milhões em nova unidade",
+            "classificacao": "BAU",
+            "relevancia": 3,
+            "link": "https://exemplo.com/noticia1",
+            "palavras_chave": ["expansão", "investimento", "produção"]
+        },
+        {
+            "data": "2024-02-03",
+            "fonte": "Valor Econômico",
+            "titulo": "Natura anuncia aquisição",
+            "conteudo": "Aquisição de startup de tecnologia",
+            "classificacao": "Bomba",
+            "relevancia": 5,
+            "link": "https://exemplo.com/noticia2",
+            "palavras_chave": ["aquisição", "tecnologia", "expansão"]
+        }
+    ]
+    return pd.DataFrame(alerts)
+
+# Taxonomia de palavras-chave
+TAXONOMIA = {
+    "Inovação": ["tecnologia", "inovação", "pesquisa", "desenvolvimento", "startup"],
+    "Sustentabilidade": ["sustentável", "reciclagem", "meio ambiente", "eco-friendly"],
+    "Expansão": ["aquisição", "investimento", "nova fábrica", "mercado"],
+    "Digital": ["e-commerce", "digital", "online", "app", "plataforma"],
+    "Produto": ["lançamento", "linha", "produto", "coleção", "portfólio"]
+}
+
+# Classificações
+CLASSIFICACOES = {
+    "BAU": "Business as Usual - Ações rotineiras",
+    "Bomba": "Ações de alto impacto no mercado",
+    "Ação Ninja": "Movimentos estratégicos inesperados",
+    "Normal": "Ações regulares sem grande impacto"
+}
 
 # Carrega dados
-pipeline_data, tech_data = load_mock_data()
+linkedin_data = get_linkedin_data()
+alerts_data = get_google_alerts()
 
 # Header
 st.title("🎯 Plataforma IC Natura")
 
-# Sidebar - Fontes de Dados
-with st.sidebar:
-    st.header("Fontes de Dados")
-    
-    # Busca
-    search = st.text_input("🔍 Buscar fontes...", "")
+# Main Content
+tabs = st.tabs(["📊 Daily Analysis", "🔍 Monitoramento", "📈 Reports", "💬 Assistente IA"])
+
+# Daily Analysis Tab
+with tabs[0]:
+    st.subheader("Análise Diária de Movimentos")
     
     # Filtros
     col1, col2 = st.columns(2)
     with col1:
-        st.button("🔍 Filtrar")
+        data_filtro = st.date_input(
+            "Data da Análise",
+            datetime.now()
+        )
     with col2:
-        st.button("📅 Data")
+        classificacao_filtro = st.multiselect(
+            "Classificação",
+            list(CLASSIFICACOES.keys()),
+            default=list(CLASSIFICACOES.keys())
+        )
     
-    # Lista de fontes
-    st.subheader("Fontes Disponíveis")
+    # Movimentos do Dia
+    st.markdown("### 📋 Movimentos do Dia")
     
-    # Dados de Mercado
-    st.markdown("#### 📊 Dados de Mercado")
-    market_sources = {
-        "Google Trends": True,
-        "SalesForce": False,
-    }
-    
-    for source, active in market_sources.items():
-        col1, col2 = st.columns([3,1])
-        with col1:
-            st.checkbox(source, value=active)
-        with col2:
-            if active:
-                st.success("ativo")
-            else:
-                st.warning("pendente")
-    
-    # Redes Sociais
-    st.markdown("#### 📱 Redes Sociais")
-    social_sources = {
-        "Instagram": False,
-        "TikTok": False,
-        "LinkedIn": False,
-        "YouTube": False
-    }
-    
-    for source, active in social_sources.items():
-        col1, col2 = st.columns([3,1])
-        with col1:
-            st.checkbox(source, value=active)
-        with col2:
-            if active:
-                st.success("ativo")
-            else:
-                st.warning("pendente")
-
-# Main Content
-tabs = st.tabs(["📊 Dashboard", "🔬 Inovação", "💬 Assistente IA", "📈 Studio"])
-
-# Dashboard Tab
-with tabs[0]:
-    # Métricas Principais
-    col1, col2, col3, col4 = st.columns(4)
-    with col1:
-        st.metric("Patentes (2024)", "127", "15%")
-    with col2:
-        st.metric("Projetos Ativos", "43", "8%")
-    with col3:
-        st.metric("Novas Tecnologias", "28", "12%")
-    with col4:
-        st.metric("Parcerias", "15", "20%")
-
-    st.markdown("---")
-    
-    # Radar de Inovação
-    st.subheader("🔍 Radar de Inovação")
-    
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 🆕 Últimos Lançamentos")
-        launches = [
-            {
-                "marca": "Boticário",
-                "produto": "Linha Botik Skincare Tech",
-                "data": "Jan 2024",
-                "descrição": "Produtos com tecnologia de microencapsulamento",
-                "tipo": "Novo Produto"
-            },
-            {
-                "marca": "Avon",
-                "produto": "Power Stay Matte",
-                "data": "Jan 2024",
-                "descrição": "Base com tecnologia de longa duração",
-                "tipo": "Novo Produto"
-            },
-            {
-                "marca": "Natura",
-                "produto": "Chronos Biome",
-                "data": "Dez 2023",
-                "descrição": "Tecnologia de proteção do microbioma",
-                "tipo": "Nova Tecnologia"
-            }
-        ]
-        
-        for launch in launches:
-            with st.container():
-                st.markdown(f"""
-                **{launch['marca']} - {launch['produto']}**  
-                📅 {launch['data']}  
-                {launch['descrição']}  
-                *Tipo: {launch['tipo']}*
-                """)
-                st.markdown("---")
-    
-    with col2:
-        st.markdown("#### 🤝 Parcerias e Movimentos Estratégicos")
-        partnerships = [
-            {
-                "empresa": "Boticário",
-                "parceiro": "L'Oréal Research",
-                "tipo": "P&D",
-                "status": "Ativa",
-                "descrição": "Desenvolvimento de ativos sustentáveis"
-            },
-            {
-                "empresa": "Natura",
-                "parceiro": "MIT Labs",
-                "tipo": "Inovação",
-                "status": "Em negociação",
-                "descrição": "Pesquisa em biotecnologia"
-            },
-            {
-                "empresa": "Avon",
-                "parceiro": "Tecnologia K-Beauty",
-                "tipo": "Comercial",
-                "status": "Ativa",
-                "descrição": "Expansão linha coreana"
-            }
-        ]
-        
-        for partner in partnerships:
-            with st.container():
-                col_info, col_status = st.columns([3,1])
-                with col_info:
-                    st.markdown(f"""
-                    **{partner['empresa']} + {partner['parceiro']}**  
-                    Tipo: {partner['tipo']}  
-                    {partner['descrição']}
-                    """)
-                with col_status:
-                    if partner['status'] == 'Ativa':
-                        st.success('Ativa')
-                    else:
-                        st.warning('Em negociação')
-                st.markdown("---")
-
-# Tab de Inovação
-with tabs[1]:
-    st.subheader("🔬 Análise de Inovação")
-    
-    # Pipeline de Inovação
-    st.markdown("#### 📈 Pipeline de Inovação por Empresa")
-    
-    fig_pipeline = px.bar(
-        pipeline_data,
-        x="estagio",
-        y="projetos",
-        color="empresa",
-        title="Pipeline de Inovação por Empresa",
-        barmode="group"
-    )
-    
-    st.plotly_chart(fig_pipeline, use_container_width=True)
-    
-    # Mapa de Tecnologias
-    st.markdown("#### 🔍 Mapa de Tecnologias Emergentes")
-    
-    fig_tech = px.pie(
-        tech_data,
-        values="investimento",
-        names="area",
-        title="Distribuição de Investimentos em Tecnologia"
-    )
-    
-    st.plotly_chart(fig_tech, use_container_width=True)
-    
-    # Monitoramento de Startups
-    st.markdown("#### 🚀 Radar de Startups")
-    startups = [
-        {"nome": "BeautyTech", "foco": "IA para personalização", "interesse": "Alto"},
-        {"nome": "EcoPackaging", "foco": "Embalagens sustentáveis", "interesse": "Médio"},
-        {"nome": "BioActives", "foco": "Biotecnologia", "interesse": "Alto"}
-    ]
-    
-    for startup in startups:
-        with st.container():
+    # LinkedIn
+    st.markdown("#### LinkedIn")
+    for _, post in linkedin_data.iterrows():
+        with st.expander(f"{post['empresa']} - {post['tipo']}"):
             col1, col2 = st.columns([3,1])
             with col1:
-                st.markdown(f"""
-                **{startup['nome']}**  
-                Foco: {startup['foco']}
-                """)
+                st.markdown(f"**Conteúdo:** {post['conteudo']}")
+                st.markdown(f"**Palavras-chave:** {', '.join(post['palavras_chave'])}")
+                st.markdown(f"**Engajamento:** {post['engajamento']}")
             with col2:
-                if startup['interesse'] == 'Alto':
-                    st.success('Alto Interesse')
+                if post['classificacao'] == 'Bomba':
+                    st.error(post['classificacao'])
+                elif post['classificacao'] == 'Ação Ninja':
+                    st.warning(post['classificacao'])
                 else:
-                    st.warning('Médio Interesse')
+                    st.info(post['classificacao'])
+            
+            st.markdown(f"[Ver no LinkedIn]({post['link']})")
+    
+    # Google Alerts
+    st.markdown("#### Notícias")
+    for _, alert in alerts_data.iterrows():
+        with st.expander(f"{alert['titulo']}"):
+            col1, col2 = st.columns([3,1])
+            with col1:
+                st.markdown(f"**Fonte:** {alert['fonte']}")
+                st.markdown(f"**Conteúdo:** {alert['conteudo']}")
+                st.markdown(f"**Palavras-chave:** {', '.join(alert['palavras_chave'])}")
+            with col2:
+                if alert['classificacao'] == 'Bomba':
+                    st.error(alert['classificacao'])
+                elif alert['classificacao'] == 'Ação Ninja':
+                    st.warning(alert['classificacao'])
+                else:
+                    st.info(alert['classificacao'])
+            
+            st.markdown(f"[Ler mais]({alert['link']})")
+
+# Monitoramento Tab
+with tabs[1]:
+    st.subheader("Monitoramento de Fontes")
+    
+    # LinkedIn Insights
+    st.markdown("### LinkedIn")
+    
+    # Gráfico de engajamento
+    fig_engagement = px.bar(
+        linkedin_data,
+        x='empresa',
+        y='engajamento',
+        color='classificacao',
+        title="Engajamento por Empresa"
+    )
+    st.plotly_chart(fig_engagement, use_container_width=True)
+    
+    # Análise de palavras-chave
+    st.markdown("### Análise de Palavras-chave")
+    
+    # Criar DataFrame com contagem de palavras-chave
+    all_keywords = pd.DataFrame([
+        {"palavra": kw, "categoria": cat}
+        for cat, keywords in TAXONOMIA.items()
+        for kw in keywords
+    ])
+    
+    # Mostrar taxonomia
+    for categoria, keywords in TAXONOMIA.items():
+        with st.expander(f"📑 {categoria}"):
+            for kw in keywords:
+                st.markdown(f"- {kw}")
+
+# Reports Tab
+with tabs[2]:
+    st.subheader("Reports")
+    
+    # Métricas
+    col1, col2, col3, col4 = st.columns(4)
+    with col1:
+        st.metric(
+            "Posts LinkedIn",
+            len(linkedin_data),
+            "2 novos"
+        )
+    with col2:
+        st.metric(
+            "Notícias",
+            len(alerts_data),
+            "3 novas"
+        )
+    with col3:
+        st.metric(
+            "Ações Bomba",
+            len(linkedin_data[linkedin_data['classificacao'] == 'Bomba']) + 
+            len(alerts_data[alerts_data['classificacao'] == 'Bomba']),
+            "1 nova"
+        )
+    with col4:
+        st.metric(
+            "Ações Ninja",
+            len(linkedin_data[linkedin_data['classificacao'] == 'Ação Ninja']) + 
+            len(alerts_data[alerts_data['classificacao'] == 'Ação Ninja']),
+            "1 nova"
+        )
+    
+    # Timeline de ações
+    st.markdown("### Timeline de Ações")
+    
+    # Combinar dados de LinkedIn e Google Alerts
+    all_actions = pd.concat([
+        linkedin_data[['data', 'empresa', 'classificacao', 'relevancia']],
+        alerts_data[['data', 'fonte', 'classificacao', 'relevancia']].rename(columns={'fonte': 'empresa'})
+    ])
+    
+    fig_timeline = px.scatter(
+        all_actions,
+        x='data',
+        y='empresa',
+        color='classificacao',
+        size='relevancia',
+        title="Timeline de Ações por Empresa"
+    )
+    
+    st.plotly_chart(fig_timeline, use_container_width=True)
 
 # Chat Tab
-with tabs[2]:
+with tabs[3]:
     st.subheader("💬 Chat com Assistente Natura")
     zaia_widget()
 
-# Studio Tab
-with tabs[3]:
-    st.subheader("Studio")
+# Sidebar - Configurações e Filtros
+with st.sidebar:
+    st.header("Configurações")
     
-    # Quick Dashboard
-    st.markdown("#### 🎯 Dashboard Rápido")
-    col1, col2, col3 = st.columns(3)
-    with col1:
-        if st.button("📊 Análise de Mercado"):
-            st.metric("Market Share", "35%", "2.5%")
-    with col2:
-        if st.button("🔬 Pipeline de Inovação"):
-            st.metric("Projetos Ativos", "43", "8%")
-    with col3:
-        if st.button("🚀 Startups"):
-            st.metric("Oportunidades", "12", "3")
+    # Fontes ativas
+    st.subheader("Fontes de Dados")
+    fontes = {
+        "LinkedIn": True,
+        "Google Alerts": True,
+        "Portal de Notícias": False,
+        "Twitter": False
+    }
     
-    # Report Generation
-    st.markdown("#### 📑 Relatórios")
-    with st.expander("📊 Análise de Inovação"):
-        st.write("Análise do último trimestre:")
-        st.write("• 15 novos projetos iniciados")
-        st.write("• 3 parcerias estratégicas estabelecidas")
-        st.write("• 5 tecnologias em fase final de desenvolvimento")
+    for fonte, status in fontes.items():
+        col1, col2 = st.columns([3,1])
+        with col1:
+            st.checkbox(fonte, value=status)
+        with col2:
+            if status:
+                st.success("✓")
+            else:
+                st.warning("×")
     
-    with st.expander("💡 Recomendações"):
-        st.write("• Acelerar projetos em biotecnologia")
-        st.write("• Explorar parcerias com startups")
-        st.write("• Investir em personalização")
+    # Palavras-chave
+    st.subheader("Monitoramento")
+    with st.expander("📝 Palavras-chave"):
+        for categoria in TAXONOMIA.keys():
+            st.checkbox(categoria, value=True)
     
-    # Botões de ação
-    col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📤 Exportar Relatório"):
-            st.success("Relatório exportado com sucesso!")
-    with col2:
-        if st.button("📧 Compartilhar"):
-            st.success("Link de compartilhamento gerado!")
+    # Configurações de alerta
+    st.subheader("Alertas")
+    st.checkbox("Notificar ações Bomba", value=True)
+    st.checkbox("Notificar ações Ninja", value=True)
+    st.checkbox("Resumo diário", value=True)
 
 # Footer
 st.markdown("---")
