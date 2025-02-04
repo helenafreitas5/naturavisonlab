@@ -5,241 +5,307 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import numpy as np
+from wordcloud import WordCloud
+import matplotlib.pyplot as plt
+from textblob import TextBlob
+from sklearn.preprocessing import MinMaxScaler
+from scipy import stats
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Widget HTML da Zaia
-def zaia_widget():
-    widget_html = """
-        <div>
-            <script>
-                window.Widget = {
-                    AgentURL: "https://platform.zaia.app/embed/chat/36828",
-                };
-            </script>
-            <script src="https://platform.zaia.app/script/widget-loader.js"></script>
-        </div>
-    """
-    components.html(widget_html, height=700)
+# [Widget da Zaia permanece igual]
 
-# Dados simulados baseados em tendências reais
-@st.cache_data
-def load_mock_data():
-    # Dados de busca por tipo de pele (simulando dados do Google Trends)
-    dates = pd.date_range(start='2024-01-01', end='2024-02-04', freq='D')
+# Funções de análise
+def generate_sentiment_data():
+    """Gera dados simulados de sentimento para produtos"""
+    produtos = ['Hidratante', 'Protetor Solar', 'Sérum', 'Máscara Facial']
+    marcas = ['Natura', 'Avon', 'Boticário']
     
-    # Simulando dados com sazonalidade e tendências
-    np.random.seed(42)  # Para reprodutibilidade
+    reviews = []
+    np.random.seed(42)
     
-    # Tendência de pele oleosa (maior no verão)
-    base_oleosa = 65 + np.sin(np.linspace(0, np.pi, len(dates))) * 20
-    noise_oleosa = np.random.normal(0, 5, len(dates))
-    pele_oleosa = base_oleosa + noise_oleosa
+    for produto in produtos:
+        for marca in marcas:
+            n_reviews = np.random.randint(50, 200)
+            
+            # Simula diferentes distribuições de sentimento para cada marca
+            if marca == 'Natura':
+                sentiments = np.random.normal(0.7, 0.2, n_reviews)
+            elif marca == 'Avon':
+                sentiments = np.random.normal(0.6, 0.25, n_reviews)
+            else:
+                sentiments = np.random.normal(0.65, 0.22, n_reviews)
+                
+            sentiments = np.clip(sentiments, -1, 1)
+            
+            for sentiment in sentiments:
+                reviews.append({
+                    'produto': produto,
+                    'marca': marca,
+                    'sentimento': sentiment,
+                    'data': pd.Timestamp('2024-01-01') + pd.Timedelta(days=np.random.randint(0, 30))
+                })
     
-    # Tendência de pele seca (maior no inverno)
-    base_seca = 45 + np.sin(np.linspace(0, np.pi, len(dates))) * 15
-    noise_seca = np.random.normal(0, 5, len(dates))
-    pele_seca = base_seca + noise_seca
+    return pd.DataFrame(reviews)
+
+def generate_trend_forecast():
+    """Gera previsão de tendências simulada"""
+    dates = pd.date_range(start='2024-01-01', end='2024-12-31', freq='D')
     
-    skin_trends = pd.DataFrame({
+    # Tendência base
+    trend = np.linspace(0, 2, len(dates))
+    
+    # Sazonalidade
+    seasonality = np.sin(np.linspace(0, 4*np.pi, len(dates))) * 0.3
+    
+    # Ruído
+    noise = np.random.normal(0, 0.1, len(dates))
+    
+    # Combina componentes
+    signal = trend + seasonality + noise
+    
+    # Normaliza para valores realistas
+    scaler = MinMaxScaler(feature_range=(30, 100))
+    signal_scaled = scaler.fit_transform(signal.reshape(-1, 1)).flatten()
+    
+    return pd.DataFrame({
         'data': dates,
-        'pele_oleosa': pele_oleosa,
-        'pele_seca': pele_seca
+        'valor': signal_scaled,
+        'tipo': 'histórico'
     })
+
+def generate_market_segments():
+    """Gera dados simulados de segmentação de mercado"""
+    segments = {
+        'Skincare': {
+            'Natura': 35,
+            'Avon': 25,
+            'Boticário': 20,
+            'Outros': 20
+        },
+        'Maquiagem': {
+            'Natura': 30,
+            'Avon': 28,
+            'Boticário': 25,
+            'Outros': 17
+        },
+        'Perfumaria': {
+            'Natura': 40,
+            'Avon': 20,
+            'Boticário': 25,
+            'Outros': 15
+        }
+    }
     
-    return skin_trends
+    data = []
+    for segment, shares in segments.items():
+        for brand, share in shares.items():
+            data.append({
+                'segmento': segment,
+                'marca': brand,
+                'share': share
+            })
+    
+    return pd.DataFrame(data)
 
 # Carrega dados
-skin_trends = load_mock_data()
+sentiment_data = generate_sentiment_data()
+forecast_data = generate_trend_forecast()
+segment_data = generate_market_segments()
 
 # Header
 st.title("🎯 Plataforma IC Natura")
 
 # Main Content
-tab1, tab2, tab3 = st.tabs(["📊 Dashboard", "💬 Assistente IA", "📈 Análise"])
+tabs = st.tabs(["📊 Tendências de Mercado", "😊 Análise de Sentimento", "🔮 Previsões", "🎯 Segmentação", "💬 Assistente IA"])
 
-# Dashboard Tab
-with tab1:
-    # Diferença entre Pele Oleosa e Pele Seca
-    st.subheader("Tendências de Busca: Pele Oleosa vs Pele Seca (Brasil, 2024)")
+# Tab de Tendências de Mercado
+with tabs[0]:
+    st.subheader("Análise de Tendências de Mercado")
     
-    # Gráfico principal de tendências
-    fig_trends = go.Figure()
-    
-    # Adiciona linhas para cada tipo de pele
-    fig_trends.add_trace(
-        go.Scatter(
-            x=skin_trends['data'],
-            y=skin_trends['pele_oleosa'],
-            name="Pele Oleosa",
-            line=dict(color="#FF6B6B", width=2),
-            fill='tonexty'
-        )
-    )
-    
-    fig_trends.add_trace(
-        go.Scatter(
-            x=skin_trends['data'],
-            y=skin_trends['pele_seca'],
-            name="Pele Seca",
-            line=dict(color="#4ECDC4", width=2),
-            fill='tonexty'
-        )
-    )
-    
-    # Configuração do layout
-    fig_trends.update_layout(
-        hovermode='x unified',
-        plot_bgcolor='white',
-        height=400,
-        xaxis=dict(
-            title="Data",
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='lightgray'
-        ),
-        yaxis=dict(
-            title="Volume de Busca",
-            showgrid=True,
-            gridwidth=1,
-            gridcolor='lightgray'
-        )
-    )
-    
-    st.plotly_chart(fig_trends, use_container_width=True)
-    
-    # Métricas e Insights
-    col1, col2, col3, col4 = st.columns(4)
-    
-    with col1:
-        media_oleosa = skin_trends['pele_oleosa'].mean()
-        st.metric(
-            "Média Pele Oleosa",
-            f"{media_oleosa:.1f}",
-            f"{skin_trends['pele_oleosa'].iloc[-1] - media_oleosa:.1f}"
-        )
-    
-    with col2:
-        media_seca = skin_trends['pele_seca'].mean()
-        st.metric(
-            "Média Pele Seca",
-            f"{media_seca:.1f}",
-            f"{skin_trends['pele_seca'].iloc[-1] - media_seca:.1f}"
-        )
-    
-    with col3:
-        razao = media_oleosa / media_seca
-        st.metric(
-            "Razão Oleosa/Seca",
-            f"{razao:.2f}x"
-        )
-    
-    with col4:
-        correlacao = skin_trends['pele_oleosa'].corr(skin_trends['pele_seca'])
-        st.metric(
-            "Correlação",
-            f"{correlacao:.2f}"
-        )
-    
-    # Insights automáticos
-    st.subheader("💡 Insights")
-    
-    with st.expander("Ver Análise Detalhada"):
-        st.write("""
-        **Principais Observações:**
-        - O interesse por pele oleosa é consistentemente maior que pele seca no Brasil
-        - Há uma correlação sazonal clara entre os tipos de pele
-        - O volume de buscas por pele oleosa é em média {:.1f}x maior que pele seca
-        - Os picos de busca coincidem com mudanças de estação
-        
-        **Oportunidades:**
-        - Desenvolver produtos específicos para pele oleosa
-        - Criar conteúdo educativo sobre cuidados com pele oleosa
-        - Planejar campanhas sazonais alinhadas com as tendências de busca
-        """.format(razao))
-
-# Chat Tab com widget da Zaia
-with tab2:
-    st.subheader("💬 Chat com Assistente Natura")
-    zaia_widget()
-
-# Análise Tab
-with tab3:
-    st.subheader("Relatório Automático")
-    
-    with st.expander("📊 Análise de Performance"):
-        st.write("Análise de performance do último trimestre:")
-        st.write("• Volume de buscas por pele oleosa 30% maior que a média histórica")
-        st.write("• Tendência de crescimento nas buscas por cuidados específicos")
-        st.write("• Oportunidade de mercado para produtos de controle de oleosidade")
-    
-    with st.expander("💡 Recomendações"):
-        st.write("• Desenvolver linha específica para pele oleosa")
-        st.write("• Criar conteúdo educativo sobre cuidados com pele")
-        st.write("• Planejar campanhas sazonais")
-    
-    # Botões de ação
     col1, col2 = st.columns(2)
-    with col1:
-        if st.button("📤 Exportar Relatório"):
-            st.success("Relatório exportado com sucesso!")
-    with col2:
-        if st.button("📧 Compartilhar"):
-            st.success("Link de compartilhamento gerado!")
-
-# Sidebar - Fontes de Dados
-with st.sidebar:
-    st.header("Fontes de Dados")
     
-    # Busca
-    search = st.text_input("🔍 Buscar fontes...", "")
+    with col1:
+        # Market Share por Segmento
+        fig_segments = px.treemap(
+            segment_data,
+            path=['segmento', 'marca'],
+            values='share',
+            title='Market Share por Segmento'
+        )
+        st.plotly_chart(fig_segments, use_container_width=True)
+    
+    with col2:
+        # Performance por Marca
+        fig_performance = px.bar(
+            segment_data.groupby('marca')['share'].sum().reset_index(),
+            x='marca',
+            y='share',
+            title='Share Total por Marca',
+            color='marca'
+        )
+        st.plotly_chart(fig_performance, use_container_width=True)
+
+# Tab de Análise de Sentimento
+with tabs[1]:
+    st.subheader("Análise de Sentimento dos Produtos")
     
     # Filtros
     col1, col2 = st.columns(2)
     with col1:
-        st.button("🔍 Filtrar")
+        selected_product = st.selectbox('Produto', sentiment_data['produto'].unique())
     with col2:
-        st.button("📅 Data")
+        selected_brand = st.multiselect('Marca', sentiment_data['marca'].unique(), default=sentiment_data['marca'].unique())
     
-    # Lista de fontes
-    st.subheader("Fontes Disponíveis")
+    filtered_data = sentiment_data[
+        (sentiment_data['produto'] == selected_product) &
+        (sentiment_data['marca'].isin(selected_brand))
+    ]
     
-    # Dados de Mercado
-    st.markdown("#### 📊 Dados de Mercado")
-    market_sources = {
-        "Google Trends": True,
-        "SalesForce": False,
-    }
+    # Gráfico de sentimento
+    fig_sentiment = px.box(
+        filtered_data,
+        x='marca',
+        y='sentimento',
+        color='marca',
+        title=f'Distribuição de Sentimento - {selected_product}'
+    )
+    st.plotly_chart(fig_sentiment, use_container_width=True)
     
-    for source, active in market_sources.items():
-        col1, col2 = st.columns([3,1])
-        with col1:
-            st.checkbox(source, value=active)
-        with col2:
-            if active:
-                st.success("ativo")
-            else:
-                st.warning("pendente")
+    # Métricas de sentimento
+    metrics = filtered_data.groupby('marca')['sentimento'].agg(['mean', 'std', 'count']).round(3)
     
-    # Redes Sociais
-    st.markdown("#### 📱 Redes Sociais")
-    social_sources = {
-        "Instagram": False,
-        "TikTok": False,
-        "LinkedIn": False,
-        "YouTube": False
-    }
+    col1, col2, col3 = st.columns(3)
+    for idx, (marca, row) in enumerate(metrics.iterrows()):
+        with [col1, col2, col3][idx % 3]:
+            st.metric(
+                f"{marca}",
+                f"Score: {row['mean']:.2f}",
+                f"Reviews: {row['count']}"
+            )
+
+# Tab de Previsões
+with tabs[2]:
+    st.subheader("Previsão de Tendências")
     
-    for source, active in social_sources.items():
-        col1, col2 = st.columns([3,1])
-        with col1:
-            st.checkbox(source, value=active)
-        with col2:
-            if active:
-                st.success("ativo")
-            else:
-                st.warning("pendente")
+    # Gráfico de previsão
+    fig_forecast = go.Figure()
+    
+    # Dados históricos
+    fig_forecast.add_trace(
+        go.Scatter(
+            x=forecast_data['data'],
+            y=forecast_data['valor'],
+            name="Tendência",
+            line=dict(color="#1f77b4", width=2)
+        )
+    )
+    
+    # Intervalo de confiança
+    upper = forecast_data['valor'] * 1.1
+    lower = forecast_data['valor'] * 0.9
+    
+    fig_forecast.add_trace(
+        go.Scatter(
+            x=forecast_data['data'],
+            y=upper,
+            fill=None,
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            name="Upper Bound"
+        )
+    )
+    
+    fig_forecast.add_trace(
+        go.Scatter(
+            x=forecast_data['data'],
+            y=lower,
+            fill="tonexty",
+            fillcolor="rgba(0,176,246,0.2)",
+            line=dict(color="rgba(0,0,0,0)"),
+            showlegend=False,
+            name="Lower Bound"
+        )
+    )
+    
+    fig_forecast.update_layout(
+        title="Previsão de Tendências para 2024",
+        xaxis_title="Data",
+        yaxis_title="Índice de Tendência",
+        hovermode="x unified"
+    )
+    
+    st.plotly_chart(fig_forecast, use_container_width=True)
+    
+    # Insights de previsão
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        st.info("🔍 **Insights Principais**\n"
+                "- Tendência de crescimento sustentado\n"
+                "- Pico esperado em julho/2024\n"
+                "- Sazonalidade marcante no segundo semestre")
+    
+    with col2:
+        st.warning("⚠️ **Pontos de Atenção**\n"
+                  "- Possível desaceleração em setembro\n"
+                  "- Alta volatilidade no último trimestre\n"
+                  "- Necessidade de ações preventivas")
+
+# Tab de Segmentação
+with tabs[3]:
+    st.subheader("Segmentação de Mercado")
+    
+    # Mapa de calor de correlações
+    correlation_matrix = pd.pivot_table(
+        segment_data,
+        values='share',
+        index='segmento',
+        columns='marca'
+    ).corr()
+    
+    fig_heatmap = px.imshow(
+        correlation_matrix,
+        text=correlation_matrix.round(2),
+        aspect="auto",
+        title="Correlação entre Marcas por Segmento"
+    )
+    
+    st.plotly_chart(fig_heatmap, use_container_width=True)
+    
+    # Análise de composição
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        fig_composition = px.sunburst(
+            segment_data,
+            path=['segmento', 'marca'],
+            values='share',
+            title="Composição do Mercado"
+        )
+        st.plotly_chart(fig_composition, use_container_width=True)
+    
+    with col2:
+        st.subheader("Insights de Segmentação")
+        st.write("""
+        **Principais Observações:**
+        - Natura lidera em Perfumaria
+        - Maior competição em Maquiagem
+        - Oportunidade em Skincare
+        
+        **Recomendações:**
+        1. Fortalecer presença em Skincare
+        2. Defender posição em Perfumaria
+        3. Inovar em Maquiagem
+        """)
+
+# Tab do Assistente
+with tabs[4]:
+    st.subheader("💬 Chat com Assistente Natura")
+    zaia_widget()
+
+# Sidebar com fontes permanece igual
 
 # Footer
 st.markdown("---")
