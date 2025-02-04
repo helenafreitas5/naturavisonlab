@@ -9,38 +9,38 @@ import json
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Configuração da API Zaia
-ZAIA_API_KEY = "540b412c-e74a-4b84-b7bd-90b6a2c41b71"
-ZAIA_AGENT_ID = "36828"
-
-# Função para interagir com a Zaia
+# Função para interagir com a Zaia via Webhook
 def get_zaia_response(prompt):
-    url = f"https://platform.zaia.app/api/chat/{ZAIA_AGENT_ID}/messages"
+    url = "https://api.zaia.app/v1/webhook/agent-incoming-webhook-event/create"
+    
+    params = {
+        "agentIncomingWebhookId": "2469",
+        "key": "b58b7e25-5022-4d36-930a-a6c953b8a70b"
+    }
     
     headers = {
-        "Authorization": f"Bearer {ZAIA_API_KEY}",
-        "Content-Type": "application/json",
-        "Accept": "application/json"
+        "Content-Type": "application/json"
     }
     
     payload = {
-        "text": prompt,
-        "type": "text"
+        "message": prompt,
+        "sessionId": "streamlit-dashboard",
+        "source": "dashboard"
     }
     
     try:
-        response = requests.post(url, headers=headers, json=payload)
+        response = requests.post(url, params=params, headers=headers, json=payload)
+        st.write(f"Debug - Status: {response.status_code}")  # Debug info
+        st.write(f"Debug - Response: {response.text}")  # Debug info
+        
         if response.status_code == 200:
             response_data = response.json()
-            if isinstance(response_data, list) and len(response_data) > 0:
-                return response_data[0].get('content', 'Sem resposta do agente')
-            return response_data.get('content', 'Sem resposta do agente')
+            return response_data.get('message', 'Sem resposta do agente')
         else:
             st.error(f"Erro na API: {response.status_code}")
-            st.error(f"Resposta: {response.text}")
             return "Desculpe, estou tendo problemas para me comunicar com o servidor. Por favor, tente novamente."
     except Exception as e:
-        st.error(f"Erro ao conectar com a Zaia: {str(e)}")
+        st.error(f"Erro ao conectar: {str(e)}")
         return "Desculpe, ocorreu um erro na comunicação. Por favor, tente novamente em alguns instantes."
 
 # Inicialização da sessão para o chat
