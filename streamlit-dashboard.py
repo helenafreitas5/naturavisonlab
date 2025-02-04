@@ -74,14 +74,34 @@ with st.sidebar:
     
     # Lista de fontes
     st.subheader("Fontes Disponíveis")
-    sources = {
+    
+    # Dados de Mercado
+    st.markdown("#### 📊 Dados de Mercado")
+    market_sources = {
         "Google Trends": True,
-        "Social Media": True,
-        "Market Reports": False,
-        "News Feed": True
+        "SalesForce": False,
     }
     
-    for source, active in sources.items():
+    for source, active in market_sources.items():
+        col1, col2 = st.columns([3,1])
+        with col1:
+            st.checkbox(source, value=active)
+        with col2:
+            if active:
+                st.success("ativo")
+            else:
+                st.warning("pendente")
+    
+    # Redes Sociais
+    st.markdown("#### 📱 Redes Sociais")
+    social_sources = {
+        "Instagram": False,
+        "TikTok": False,
+        "LinkedIn": False,
+        "YouTube": False
+    }
+    
+    for source, active in social_sources.items():
         col1, col2 = st.columns([3,1])
         with col1:
             st.checkbox(source, value=active)
