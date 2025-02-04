@@ -50,8 +50,8 @@ def gerar_dados_sentimento(num_records=50):
         })
     return pd.DataFrame(lista)
 
-def zaia_widget():
-    """Exibe o Chatbot da Zaia"""
+def agente_ia_widget():
+    """Exibe o Agente de IA"""
     widget_html = """
         <div>
             <script>
@@ -67,11 +67,11 @@ def zaia_widget():
 # Sidebar - Navegação
 st.sidebar.title("Navegação")
 selecao = st.sidebar.radio("Escolha uma seção:", [
-    "📡 Fontes de Dados", "💬 ChatBot Zaia", "🎯 Estúdio"])
+    "📡 Fonte de Dados", "🤖 Agente de I.A", "🎯 Estúdio"])
 
-# Fontes de Dados
-if selecao == "📡 Fontes de Dados":
-    st.title("📡 Fontes de Dados")
+# Fonte de Dados
+if selecao == "📡 Fonte de Dados":
+    st.title("📡 Fonte de Dados")
     st.subheader("Gerenciamento das fontes de dados ativas")
     st.write("Aqui você pode ativar/desativar fontes de dados para análise.")
     
@@ -94,11 +94,11 @@ if selecao == "📡 Fontes de Dados":
             else:
                 st.warning("Pendente")
 
-# ChatBot Zaia
-elif selecao == "💬 ChatBot Zaia":
-    st.title("💬 ChatBot Zaia")
+# Agente de I.A
+elif selecao == "🤖 Agente de I.A":
+    st.title("🤖 Agente de I.A")
     st.subheader("Converse com o assistente de IA da Natura")
-    zaia_widget()
+    agente_ia_widget()
 
 # Estúdio
 elif selecao == "🎯 Estúdio":
