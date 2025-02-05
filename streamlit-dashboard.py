@@ -494,4 +494,13 @@ with tabs[4]:
         
         # Análise de palavras-chave
         st.markdown("#### Palavras-chave Relacionadas")
-        st.write(f"Primárias:
+        st.write(f"Primárias: {', '.join(SEMANTIC_NETWORK[selected_territory]['primary'])}")
+        st.write(f"Relacionadas: {', '.join(SEMANTIC_NETWORK[selected_territory]['related'])}")
+    
+    else:  # Tendências Emergentes
+        st.markdown("### Tendências Emergentes")
+        
+        # Análise temporal de territórios
+        territory_trends = pd.DataFrame([
+            {'data': row['data'], 'territorio': t, 'relevancia': row['relevancia']}
+            for _, row in movements_data.iterrows()
