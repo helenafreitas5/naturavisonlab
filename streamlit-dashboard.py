@@ -83,7 +83,6 @@ class SemanticAnalyzer:
     def analyze_text(self, text):
         """Analisa texto e retorna classificações e territórios"""
         text_lower = text.lower()
-        doc = nlp(text_lower)
         
         # Análise de territórios
         territory_scores = defaultdict(float)
@@ -201,16 +200,16 @@ with tabs[0]:
     st.subheader("Overview de Mercado")
     
     # Métricas principais
-    col1, col2, col3, col4 = st.columns(4)
+    col1_dash, col2_dash, col3_dash, col4_dash = st.columns(4)
     
-    with col1:
+    with col1_dash:
         st.metric(
             "Movimentos",
             len(movements_data),
             f"+{len(movements_data[movements_data['data'] > pd.Timestamp.now() - pd.Timedelta(days=7)])}"
         )
     
-    with col2:
+    with col2_dash:
         bomba_count = len(movements_data[movements_data['tipo'] == 'Bomba'])
         st.metric(
             "Ações Bomba",
@@ -218,7 +217,7 @@ with tabs[0]:
             f"+{len(movements_data[(movements_data['tipo'] == 'Bomba') & (movements_data['data'] > pd.Timestamp.now() - pd.Timedelta(days=7))])}"
         )
     
-    with col3:
+    with col3_dash:
         avg_relevance = movements_data['relevancia'].mean()
         st.metric(
             "Relevância Média",
@@ -226,7 +225,7 @@ with tabs[0]:
             f"{(avg_relevance - 3):.1f}"
         )
     
-    with col4:
+    with col4_dash:
         total_engagement = movements_data['engajamento'].sum()
         st.metric(
             "Engajamento Total",
@@ -235,9 +234,9 @@ with tabs[0]:
         )
     
     # Visualizações principais
-    col1, col2 = st.columns(2)
+    col1_viz, col2_viz = st.columns(2)
     
-    with col1:
+    with col1_viz:
         # Timeline de ações
         fig = px.scatter(
             movements_data,
@@ -249,7 +248,7 @@ with tabs[0]:
         )
         st.plotly_chart(fig, use_container_width=True)
     
-    with col2:
+    with col2_viz:
         # Heatmap de territórios por empresa
         territory_data = pd.DataFrame([
             {'empresa': row['empresa'], 'territorio': t}
@@ -270,23 +269,23 @@ with tabs[1]:
     st.subheader("Fonte de Dados")
     
     # Filtros
-    col1, col2, col3 = st.columns(3)
+    col1_filter, col2_filter, col3_filter = st.columns(3)
     
-    with col1:
+    with col1_filter:
         selected_companies = st.multiselect(
             "Empresas",
             COMPETITORS,
             default=COMPETITORS[:2]
         )
     
-    with col2:
+    with col2_filter:
         selected_territories = st.multiselect(
             "Territórios",
             list(SEMANTIC_NETWORK.keys()),
             default=list(SEMANTIC_NETWORK.keys())[:2]
         )
     
-    with col3:
+    with col3_filter:
         selected_types = st.multiselect(
             "Tipos de Ação",
             list(ACTION_TYPES.keys()),
@@ -296,6 +295,7 @@ with tabs[1]:
     # Dados filtrados
     filtered_data = movements_data[
         (movements_data['empresa'].isin(selected_companies)) &
+        (movements_data['territorios'].apply(lambda terr_list: any(t in terr_list for t in selected_territories))) &
         (movements_data['tipo'].isin(selected_types))
     ]
     
@@ -304,14 +304,14 @@ with tabs[1]:
     
     for _, movement in filtered_data.iterrows():
         with st.expander(f"{movement['data'].strftime('%d/%m/%Y')} - {movement['empresa']}: {movement['acao']}"):
-            col1, col2 = st.columns([3,1])
+            col1_move, col2_move = st.columns([3,1])
             
-            with col1:
+            with col1_move:
                 st.markdown(f"**Territórios:** {', '.join(movement['territorios'])}")
                 st.markdown(f"**Sentimento:** {movement['sentimento']:.2f}")
                 st.markdown(f"**Engajamento:** {movement['engajamento']:,}")
             
-            with col2:
+            with col2_move:
                 if movement['tipo'] == 'Bomba':
                     st.error(movement['tipo'])
                 elif movement['tipo'] == 'Ninja':
@@ -429,23 +429,23 @@ with tabs[4]:
         st.markdown("### Análise Competitiva")
         
         # Métricas por empresa
-        for competitor in selected_companies:
-            comp_data = movements_data[movements_data['empresa'] == competitor]
+        for selected_company in selected_companies:
+            company_data = movements_data[movements_data['empresa'] == selected_company]
             
-            st.markdown(f"#### {competitor}")
-            col1, col2, col3 = st.columns(3)
+            st.markdown(f"#### {selected_company}")
+            col1_comp, col2_comp, col3_comp = st.columns(3)
             
-            with col1:
-                st.metric("Total de Ações", len(comp_data))
-            with col2:
-                st.metric("Relevância Média", f"{comp_data['relevancia'].mean():.1f}")
-            with col3:
-                st.metric("Engajamento Total", f"{comp_data['engajamento'].sum():,}")
+            with col1_comp:
+                st.metric("Total de Ações", len(company_data))
+            with col2_comp:
+                st.metric("Relevância Média", f"{company_data['relevancia'].mean():.1f}")
+            with col3_comp:
+                st.metric("Engajamento Total", f"{company_data['engajamento'].sum():,}")
             
             # Gráfico de ações por território
             territory_counts = pd.DataFrame([
                 {'territorio': t}
-                for _, row in comp_data.iterrows()
+                for _, row in company_data.iterrows()
                 for t in row['territorios']
             ])
             
@@ -454,7 +454,7 @@ with tabs[4]:
                     territory_counts['territorio'].value_counts().reset_index(),
                     x='index',
                     y='territorio',
-                    title=f"Ações por Território - {competitor}"
+                    title=f"Ações por Território - {selected_company}"
                 )
                 st.plotly_chart(fig, use_container_width=True)
     
@@ -467,16 +467,16 @@ with tabs[4]:
         )
         
         # Filtrar ações do território
-        territory_actions = movements_data[movements_data['territorios'].apply(lambda x: selected_territory in x)]
+        territory_actions = movements_data[movements_data['territorios'].apply(lambda terr_list: selected_territory in terr_list)]
         
         # Métricas do território
-        col1, col2, col3 = st.columns(3)
+        col1_territory, col2_territory, col3_territory = st.columns(3)
         
-        with col1:
+        with col1_territory:
             st.metric("Total de Ações", len(territory_actions))
-        with col2:
+        with col2_territory:
             st.metric("Relevância Média", f"{territory_actions['relevancia'].mean():.1f}")
-        with col3:
+        with col3_territory:
             st.metric("Engajamento Total", f"{territory_actions['engajamento'].sum():,}")
         
         # Timeline do território
@@ -495,10 +495,9 @@ with tabs[4]:
         st.write(f"Primárias: {', '.join(SEMANTIC_NETWORK[selected_territory]['primary'])}")
         st.write(f"Relacionadas: {', '.join(SEMANTIC_NETWORK[selected_territory]['related'])}")
     
-    else:  # Tendências Emergentes
+    else:
         st.markdown("### Tendências Emergentes")
         
         # Análise temporal de territórios
         territory_trends = pd.DataFrame([
-            {'data': row['data'], 'territorio': t, 'relevancia': row['relevancia']}
-            for _, row in
+            {'data': row['data'], 'territorio': t,
