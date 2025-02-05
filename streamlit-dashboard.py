@@ -5,15 +5,48 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import streamlit.components.v1 as components
 import numpy as np
-import requests
-from datetime import datetime, timedelta
-import json
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
 
-# Widget HTML da Zaia
+# Configurações e dados simulados
+COMPETITORS = ["O Boticário", "Avon", "Eudora", "MAC", "Quem disse Berenice"]
+TERRITORIES = ["Digital", "Sustentabilidade", "Experiência", "Inovação"]
+CATEGORIES = ["Skincare", "Makeup", "Perfumes", "Corpo", "Rosto"]
+
+# Função para dados simulados
+def generate_mock_data():
+    """Gera dados simulados para a plataforma"""
+    # Movimentos competitivos
+    movements = pd.DataFrame({
+        'data': pd.date_range(start='2024-01-01', end='2024-02-04', freq='D'),
+        'empresa': np.random.choice(COMPETITORS, 35),
+        'territorio': np.random.choice(TERRITORIES, 35),
+        'categoria': np.random.choice(CATEGORIES, 35),
+        'relevancia': np.random.randint(1, 6, 35),
+        'tipo': np.random.choice(['BAU', 'Bomba', 'Ninja'], 35, p=[0.7, 0.2, 0.1])
+    })
+    
+    # Engajamento
+    movements['engajamento'] = np.random.randint(100, 10000, 35)
+    
+    # Descrições simuladas
+    acoes = [
+        "Lançamento de nova linha",
+        "Campanha nas redes sociais",
+        "Parceria com influenciador",
+        "Expansão de mercado",
+        "Programa de fidelidade",
+        "Inovação em produto",
+        "Ação sustentável"
+    ]
+    movements['descricao'] = np.random.choice(acoes, 35)
+    
+    return movements
+
+# Widget do Agente ZAIA
 def zaia_widget():
+    """Widget do Agente ZAIA"""
     widget_html = """
         <div>
             <script>
@@ -26,270 +59,224 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Simulação de dados do LinkedIn e Google Alerts
-def get_linkedin_data():
-    linkedin_posts = [
-        {
-            "data": "2024-02-04",
-            "empresa": "O Boticário",
-            "tipo": "Post",
-            "conteudo": "Lançamento da nova linha sustentável",
-            "engajamento": 1500,
-            "classificacao": "Bomba",
-            "relevancia": 5,
-            "link": "https://linkedin.com/post1",
-            "palavras_chave": ["sustentabilidade", "inovação", "lançamento"]
-        },
-        {
-            "data": "2024-02-03",
-            "empresa": "Natura",
-            "tipo": "Artigo",
-            "conteudo": "Parceria com startup de biotecnologia",
-            "engajamento": 800,
-            "classificacao": "Ação Ninja",
-            "relevancia": 4,
-            "link": "https://linkedin.com/post2",
-            "palavras_chave": ["biotecnologia", "parceria", "inovação"]
-        }
-    ]
-    return pd.DataFrame(linkedin_posts)
+# Carrega dados simulados
+movements_data = generate_mock_data()
 
-def get_google_alerts():
-    alerts = [
-        {
-            "data": "2024-02-04",
-            "fonte": "Portal Cosméticos",
-            "titulo": "O Boticário investe em nova fábrica",
-            "conteudo": "Investimento de R$ 500 milhões em nova unidade",
-            "classificacao": "BAU",
-            "relevancia": 3,
-            "link": "https://exemplo.com/noticia1",
-            "palavras_chave": ["expansão", "investimento", "produção"]
-        },
-        {
-            "data": "2024-02-03",
-            "fonte": "Valor Econômico",
-            "titulo": "Natura anuncia aquisição",
-            "conteudo": "Aquisição de startup de tecnologia",
-            "classificacao": "Bomba",
-            "relevancia": 5,
-            "link": "https://exemplo.com/noticia2",
-            "palavras_chave": ["aquisição", "tecnologia", "expansão"]
-        }
-    ]
-    return pd.DataFrame(alerts)
-
-# Taxonomia de palavras-chave
-TAXONOMIA = {
-    "Inovação": ["tecnologia", "inovação", "pesquisa", "desenvolvimento", "startup"],
-    "Sustentabilidade": ["sustentável", "reciclagem", "meio ambiente", "eco-friendly"],
-    "Expansão": ["aquisição", "investimento", "nova fábrica", "mercado"],
-    "Digital": ["e-commerce", "digital", "online", "app", "plataforma"],
-    "Produto": ["lançamento", "linha", "produto", "coleção", "portfólio"]
-}
-
-# Classificações
-CLASSIFICACOES = {
-    "BAU": "Business as Usual - Ações rotineiras",
-    "Bomba": "Ações de alto impacto no mercado",
-    "Ação Ninja": "Movimentos estratégicos inesperados",
-    "Normal": "Ações regulares sem grande impacto"
-}
-
-# Carrega dados
-linkedin_data = get_linkedin_data()
-alerts_data = get_google_alerts()
-
-# Header
+# Interface principal
 st.title("🎯 Plataforma IC Natura")
 
 # Main Content
-tabs = st.tabs(["📊 Daily Analysis", "🔍 Monitoramento", "📈 Reports", "💬 Assistente IA"])
+tabs = st.tabs(["📊 Dashboard", "🔍 Fonte de Dados", "💬 Assistente IA", "📈 Studio"])
 
-# Daily Analysis Tab
+# Dashboard Tab
 with tabs[0]:
-    st.subheader("Análise Diária de Movimentos")
+    st.subheader("Overview de Mercado")
     
-    # Filtros
-    col1, col2 = st.columns(2)
-    with col1:
-        data_filtro = st.date_input(
-            "Data da Análise",
-            datetime.now()
-        )
-    with col2:
-        classificacao_filtro = st.multiselect(
-            "Classificação",
-            list(CLASSIFICACOES.keys()),
-            default=list(CLASSIFICACOES.keys())
-        )
-    
-    # Movimentos do Dia
-    st.markdown("### 📋 Movimentos do Dia")
-    
-    # LinkedIn
-    st.markdown("#### LinkedIn")
-    for _, post in linkedin_data.iterrows():
-        with st.expander(f"{post['empresa']} - {post['tipo']}"):
-            col1, col2 = st.columns([3,1])
-            with col1:
-                st.markdown(f"**Conteúdo:** {post['conteudo']}")
-                st.markdown(f"**Palavras-chave:** {', '.join(post['palavras_chave'])}")
-                st.markdown(f"**Engajamento:** {post['engajamento']}")
-            with col2:
-                if post['classificacao'] == 'Bomba':
-                    st.error(post['classificacao'])
-                elif post['classificacao'] == 'Ação Ninja':
-                    st.warning(post['classificacao'])
-                else:
-                    st.info(post['classificacao'])
-            
-            st.markdown(f"[Ver no LinkedIn]({post['link']})")
-    
-    # Google Alerts
-    st.markdown("#### Notícias")
-    for _, alert in alerts_data.iterrows():
-        with st.expander(f"{alert['titulo']}"):
-            col1, col2 = st.columns([3,1])
-            with col1:
-                st.markdown(f"**Fonte:** {alert['fonte']}")
-                st.markdown(f"**Conteúdo:** {alert['conteudo']}")
-                st.markdown(f"**Palavras-chave:** {', '.join(alert['palavras_chave'])}")
-            with col2:
-                if alert['classificacao'] == 'Bomba':
-                    st.error(alert['classificacao'])
-                elif alert['classificacao'] == 'Ação Ninja':
-                    st.warning(alert['classificacao'])
-                else:
-                    st.info(alert['classificacao'])
-            
-            st.markdown(f"[Ler mais]({alert['link']})")
-
-# Monitoramento Tab
-with tabs[1]:
-    st.subheader("Monitoramento de Fontes")
-    
-    # LinkedIn Insights
-    st.markdown("### LinkedIn")
-    
-    # Gráfico de engajamento
-    fig_engagement = px.bar(
-        linkedin_data,
-        x='empresa',
-        y='engajamento',
-        color='classificacao',
-        title="Engajamento por Empresa"
-    )
-    st.plotly_chart(fig_engagement, use_container_width=True)
-    
-    # Análise de palavras-chave
-    st.markdown("### Análise de Palavras-chave")
-    
-    # Criar DataFrame com contagem de palavras-chave
-    all_keywords = pd.DataFrame([
-        {"palavra": kw, "categoria": cat}
-        for cat, keywords in TAXONOMIA.items()
-        for kw in keywords
-    ])
-    
-    # Mostrar taxonomia
-    for categoria, keywords in TAXONOMIA.items():
-        with st.expander(f"📑 {categoria}"):
-            for kw in keywords:
-                st.markdown(f"- {kw}")
-
-# Reports Tab
-with tabs[2]:
-    st.subheader("Reports")
-    
-    # Métricas
+    # Métricas principais
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric(
-            "Posts LinkedIn",
-            len(linkedin_data),
-            "2 novos"
+        st.metric("Movimentos", len(movements_data), "+3")
+    with col2:
+        st.metric("Ações Bomba", len(movements_data[movements_data['tipo'] == 'Bomba']), "+1")
+    with col3:
+        st.metric("Relevância Média", f"{movements_data['relevancia'].mean():.1f}", "+0.2")
+    with col4:
+        st.metric("Engajamento Total", f"{movements_data['engajamento'].sum():,}", "+12%")
+
+    # Gráficos principais
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        # Movimentos por território
+        fig = px.bar(
+            movements_data['territorio'].value_counts().reset_index(),
+            x='territorio',
+            y='count',
+            title="Movimentos por Território"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+    
+    with col2:
+        # Distribuição de tipos
+        fig = px.pie(
+            movements_data['tipo'].value_counts().reset_index(),
+            values='count',
+            names='tipo',
+            title="Distribuição por Tipo de Ação"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+
+# Fonte de Dados Tab
+with tabs[1]:
+    st.subheader("Fontes de Dados")
+    
+    # Filtros
+    col1, col2, col3 = st.columns(3)
+    with col1:
+        selected_competitor = st.multiselect(
+            "Empresas",
+            COMPETITORS,
+            default=COMPETITORS[:2]
         )
     with col2:
-        st.metric(
-            "Notícias",
-            len(alerts_data),
-            "3 novas"
+        selected_territory = st.multiselect(
+            "Territórios",
+            TERRITORIES,
+            default=TERRITORIES[:2]
         )
     with col3:
-        st.metric(
-            "Ações Bomba",
-            len(linkedin_data[linkedin_data['classificacao'] == 'Bomba']) + 
-            len(alerts_data[alerts_data['classificacao'] == 'Bomba']),
-            "1 nova"
-        )
-    with col4:
-        st.metric(
-            "Ações Ninja",
-            len(linkedin_data[linkedin_data['classificacao'] == 'Ação Ninja']) + 
-            len(alerts_data[alerts_data['classificacao'] == 'Ação Ninja']),
-            "1 nova"
+        date_range = st.date_input(
+            "Período",
+            [datetime.now() - timedelta(days=30), datetime.now()]
         )
     
-    # Timeline de ações
-    st.markdown("### Timeline de Ações")
+    # Timeline de movimentos
+    st.markdown("### Timeline de Movimentos")
     
-    # Combinar dados de LinkedIn e Google Alerts
-    all_actions = pd.concat([
-        linkedin_data[['data', 'empresa', 'classificacao', 'relevancia']],
-        alerts_data[['data', 'fonte', 'classificacao', 'relevancia']].rename(columns={'fonte': 'empresa'})
-    ])
+    filtered_data = movements_data[
+        (movements_data['empresa'].isin(selected_competitor)) &
+        (movements_data['territorio'].isin(selected_territory))
+    ]
     
-    fig_timeline = px.scatter(
-        all_actions,
-        x='data',
-        y='empresa',
-        color='classificacao',
-        size='relevancia',
-        title="Timeline de Ações por Empresa"
-    )
-    
-    st.plotly_chart(fig_timeline, use_container_width=True)
+    for _, movement in filtered_data.iterrows():
+        with st.expander(f"{movement['data'].strftime('%d/%m/%Y')} - {movement['empresa']}: {movement['descricao']}"):
+            col1, col2 = st.columns([3,1])
+            
+            with col1:
+                st.markdown(f"**Território:** {movement['territorio']}")
+                st.markdown(f"**Categoria:** {movement['categoria']}")
+                st.markdown(f"**Engajamento:** {movement['engajamento']:,}")
+            
+            with col2:
+                if movement['tipo'] == 'Bomba':
+                    st.error(movement['tipo'])
+                elif movement['tipo'] == 'Ninja':
+                    st.warning(movement['tipo'])
+                else:
+                    st.info(movement['tipo'])
+                st.metric("Relevância", movement['relevancia'])
 
-# Chat Tab
-with tabs[3]:
-    st.subheader("💬 Chat com Assistente Natura")
+# Assistente IA Tab
+with tabs[2]:
+    st.subheader("💬 Assistente Natura")
     zaia_widget()
 
-# Sidebar - Configurações e Filtros
+# Studio Tab
+with tabs[3]:
+    st.subheader("Data Studio")
+    
+    # Seleção de análise
+    analysis_type = st.selectbox(
+        "Tipo de Análise",
+        ["Quick Analysis", "Competitive Report", "Territory Deep Dive"]
+    )
+    
+    if analysis_type == "Quick Analysis":
+        # Análise rápida
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Timeline
+            fig = px.scatter(
+                movements_data,
+                x='data',
+                y='empresa',
+                size='relevancia',
+                color='tipo',
+                title="Timeline de Ações"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Heatmap de territórios
+            territory_matrix = pd.crosstab(movements_data['empresa'], movements_data['territorio'])
+            fig = px.imshow(
+                territory_matrix,
+                title="Heatmap de Territórios"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+    
+    elif analysis_type == "Competitive Report":
+        # Relatório competitivo
+        st.markdown("### Análise Competitiva")
+        
+        # Métricas por empresa
+        for competitor in COMPETITORS[:3]:
+            comp_data = movements_data[movements_data['empresa'] == competitor]
+            
+            st.markdown(f"#### {competitor}")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Ações", len(comp_data))
+            with col2:
+                st.metric("Relevância Média", f"{comp_data['relevancia'].mean():.1f}")
+            with col3:
+                st.metric("% Ações Relevantes", f"{(len(comp_data[comp_data['relevancia'] >= 4]) / len(comp_data) * 100):.1f}%")
+    
+    else:  # Territory Deep Dive
+        # Análise de território
+        selected_territory = st.selectbox(
+            "Território",
+            TERRITORIES
+        )
+        
+        territory_data = movements_data[movements_data['territorio'] == selected_territory]
+        
+        # Análise do território
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            # Ações por empresa no território
+            fig = px.bar(
+                territory_data['empresa'].value_counts().reset_index(),
+                x='empresa',
+                y='count',
+                title=f"Ações em {selected_territory}"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+        
+        with col2:
+            # Relevância média por empresa
+            fig = px.bar(
+                territory_data.groupby('empresa')['relevancia'].mean().reset_index(),
+                x='empresa',
+                y='relevancia',
+                title=f"Relevância Média em {selected_territory}"
+            )
+            st.plotly_chart(fig, use_container_width=True)
+
+# Sidebar
 with st.sidebar:
     st.header("Configurações")
     
     # Fontes ativas
     st.subheader("Fontes de Dados")
-    fontes = {
+    sources = {
+        "Google Trends": True,
         "LinkedIn": True,
-        "Google Alerts": True,
-        "Portal de Notícias": False,
-        "Twitter": False
+        "Notícias": True,
+        "Redes Sociais": False
     }
     
-    for fonte, status in fontes.items():
+    for source, active in sources.items():
         col1, col2 = st.columns([3,1])
         with col1:
-            st.checkbox(fonte, value=status)
+            st.checkbox(source, value=active)
         with col2:
-            if status:
+            if active:
                 st.success("✓")
             else:
                 st.warning("×")
     
-    # Palavras-chave
-    st.subheader("Monitoramento")
-    with st.expander("📝 Palavras-chave"):
-        for categoria in TAXONOMIA.keys():
-            st.checkbox(categoria, value=True)
-    
     # Configurações de alerta
     st.subheader("Alertas")
-    st.checkbox("Notificar ações Bomba", value=True)
-    st.checkbox("Notificar ações Ninja", value=True)
-    st.checkbox("Resumo diário", value=True)
+    st.checkbox("Alertas de Bomba", value=True)
+    st.checkbox("Alertas de Ninja", value=True)
+    alert_relevance = st.slider(
+        "Relevância mínima",
+        1, 5, 4
+    )
 
 # Footer
 st.markdown("---")
