@@ -7,8 +7,6 @@ from datetime import datetime
 import streamlit.components.v1 as components
 import numpy as np
 from collections import defaultdict
-import re
-from textblob import TextBlob
 import spacy
 from nltk.sentiment.vader import SentimentIntensityAnalyzer
 from sklearn.feature_extraction.text import TfidfVectorizer
@@ -503,4 +501,4 @@ with tabs[4]:
         # Análise temporal de territórios
         territory_trends = pd.DataFrame([
             {'data': row['data'], 'territorio': t, 'relevancia': row['relevancia']}
-            for _, row in movements_data.iterrows()
+            for _, row in
