@@ -3,7 +3,7 @@ import pandas as pd
 import plotly.express as px
 import plotly.graph_objects as go
 import networkx as nx
-from datetime import datetime, timedelta
+from datetime import datetime
 import streamlit.components.v1 as components
 import numpy as np
 from collections import defaultdict
@@ -59,7 +59,6 @@ ACTION_TYPES = {
     }
 }
 
-# Classes e funções principais
 class SemanticAnalyzer:
     def __init__(self, semantic_network, action_types):
         self.semantic_network = semantic_network
@@ -99,31 +98,25 @@ def generate_mock_data():
     """Gera dados simulados enriquecidos"""
     # Ações base
     actions = [
-        "Lançamento de nova linha de skincare sustentável com tecnologia coreana",
-        "Campanha digital com 50 influenciadores para linha de maquiagem",
-        "Expansão de lojas no Nordeste com novo conceito de experiência",
-        "Parceria internacional com marca francesa de luxo",
-        "Novo app de realidade aumentada para teste de produtos",
-        "Programa de reciclagem de embalagens em parceria com cooperativas",
-        "Sistema de refil para toda linha de perfumes premium",
-        "Loja conceito com tecnologia de personalização",
-        "Nova linha de tratamento anti-idade com ativos da biodiversidade",
-        "Marketplace próprio com sistema de consultoria online"
+        "Lançamento de nova linha de skincare sustentável",
+        "Campanha digital com influenciadores",
+        "Expansão de lojas no Nordeste",
+        "Parceria com marca internacional",
+        "Novo app de realidade aumentada",
+        "Programa de reciclagem de embalagens",
+        "Sistema de refil para perfumes"
     ]
     
     # Cria DataFrame
     data = []
     analyzer = SemanticAnalyzer(SEMANTIC_NETWORK, ACTION_TYPES)
     
-    # Gera dados para os últimos 35 dias
-    start_date = pd.Timestamp.now() - pd.Timedelta(days=35)
-    
     for _ in range(35):
         action = np.random.choice(actions)
         analysis = analyzer.analyze_text(action)
         
         data.append({
-            'data': start_date + pd.Timedelta(days=np.random.randint(0, 35)),
+            'data': pd.Timestamp('2024-01-01') + pd.Timedelta(days=np.random.randint(0, 35)),
             'empresa': np.random.choice(COMPETITORS),
             'acao': action,
             'territorios': analysis['territories'],
@@ -134,31 +127,6 @@ def generate_mock_data():
         })
     
     return pd.DataFrame(data)
-
-def generate_network(data):
-    """Gera rede de conexões entre empresas e territórios"""
-    G = nx.Graph()
-    
-    # Adiciona nós
-    for territory in SEMANTIC_NETWORK.keys():
-        G.add_node(territory, type='territory')
-    
-    for competitor in COMPETITORS:
-        G.add_node(competitor, type='competitor')
-    
-    # Adiciona conexões baseadas em ações
-    for _, row in data.iterrows():
-        for territory in row['territorios']:
-            # Peso da conexão baseado na relevância
-            weight = row['relevancia'] / 5.0
-            
-            # Adiciona ou atualiza conexão
-            if G.has_edge(row['empresa'], territory):
-                G[row['empresa']][territory]['weight'] += weight
-            else:
-                G.add_edge(row['empresa'], territory, weight=weight)
-    
-    return G
 
 # Widget do Agente ZAIA
 def zaia_widget():
@@ -174,28 +142,23 @@ def zaia_widget():
     """
     components.html(widget_html, height=700)
 
-# Função para análise de tendências
-def analyze_trends(data, window_size=7):
-    """Analisa tendências nos dados"""
-    # Agregar dados por território e data
-    territory_trends = pd.DataFrame([
-        {'data': row['data'], 'territorio': t, 'relevancia': row['relevancia']}
-        for _, row in data.iterrows()
-        for t in row['territorios']
-    ])
+# Gera rede de conexões
+def generate_network(data):
+    G = nx.Graph()
     
-    # Calcular médias móveis
-    trends = {}
+    # Adiciona nós
     for territory in SEMANTIC_NETWORK.keys():
-        territory_data = territory_trends[territory_trends['territorio'] == territory]
-        if not territory_data.empty:
-            trends[territory] = {
-                'mean': territory_data['relevancia'].mean(),
-                'trend': territory_data['relevancia'].diff().mean(),
-                'volume': len(territory_data)
-            }
+        G.add_node(territory, type='territory')
     
-    return trends
+    for competitor in COMPETITORS:
+        G.add_node(competitor, type='competitor')
+    
+    # Adiciona conexões baseadas em ações
+    for _, row in data.iterrows():
+        for territory in row['territorios']:
+            G.add_edge(row['empresa'], territory, weight=row['relevancia'])
+    
+    return G
 
 # Carrega dados simulados
 movements_data = generate_mock_data()
@@ -255,13 +218,7 @@ with tabs[0]:
             y='empresa',
             size='relevancia',
             color='tipo',
-            title="Timeline de Ações",
-            height=400
-        )
-        fig.update_layout(
-            xaxis_title="Data",
-            yaxis_title="Empresa",
-            showlegend=True
+            title="Timeline de Ações"
         )
         st.plotly_chart(fig, use_container_width=True)
     
@@ -277,40 +234,9 @@ with tabs[0]:
         
         fig = px.imshow(
             territory_matrix,
-            title="Intensidade de Atuação por Território",
-            height=400,
-            color_continuous_scale="Viridis"
+            title="Intensidade de Atuação por Território"
         )
         st.plotly_chart(fig, use_container_width=True)
-    
-    # Análise de tendências
-    st.subheader("Tendências e Insights")
-    
-    # Análise de tendências por território
-    trends = analyze_trends(movements_data)
-    
-    # Exibir insights baseados nas tendências
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        st.markdown("#### 🔥 Territórios em Alta")
-        for territory, data in trends.items():
-            if data['trend'] > 0:
-                st.markdown(f"""
-                **{territory}**
-                - Volume: {data['volume']} ações
-                - Tendência: ↗️ +{abs(data['trend']):.2f}
-                """)
-    
-    with col2:
-        st.markdown("#### 📉 Territórios em Observação")
-        for territory, data in trends.items():
-            if data['trend'] < 0:
-                st.markdown(f"""
-                **{territory}**
-                - Volume: {data['volume']} ações
-                - Tendência: ↘️ {data['trend']:.2f}
-                """)
 
 # Fonte de Dados Tab
 with tabs[1]:
@@ -355,7 +281,7 @@ with tabs[1]:
             
             with col1:
                 st.markdown(f"**Territórios:** {', '.join(movement['territorios'])}")
-                st.markdown(f"**Sentimento:** {'Positivo' if movement['sentimento'] > 0 else 'Negativo'} ({movement['sentimento']:.2f})")
+                st.markdown(f"**Sentimento:** {movement['sentimento']:.2f}")
                 st.markdown(f"**Engajamento:** {movement['engajamento']:,}")
             
             with col2:
@@ -390,5 +316,203 @@ with tabs[2]:
     node_y = []
     node_text = []
     node_color = []
-    node_size = []
-    for
+    for node in network.nodes():
+        x, y = pos[node]
+        node_x.append(x)
+        node_y.append(y)
+        node_text.append(node)
+        if network.nodes[node]['type'] == 'territory':
+            node_color.append('red')
+        else:
+            node_color.append('blue')
+
+    # Criar figura
+    fig = go.Figure()
+    
+    # Adicionar arestas
+    fig.add_trace(go.Scatter(
+        x=edge_x, y=edge_y,
+        line=dict(width=0.5, color='#888'),
+        hoverinfo='none',
+        mode='lines'
+    ))
+    
+    # Adicionar nós
+    fig.add_trace(go.Scatter(
+        x=node_x, y=node_y,
+        mode='markers+text',
+        hoverinfo='text',
+        text=node_text,
+        textposition="top center",
+        marker=dict(
+            size=20,
+            color=node_color,
+            line_width=2
+        )
+    ))
+    
+    fig.update_layout(
+        title="Rede de Conexões entre Empresas e Territórios",
+        showlegend=False,
+        hovermode='closest',
+        margin=dict(b=0,l=0,r=0,t=40)
+    )
+    
+    st.plotly_chart(fig, use_container_width=True)
+    
+    # Análise de clusters
+    st.markdown("### Clusters Temáticos")
+    
+    # Criar matriz de co-ocorrência
+    territories = list(SEMANTIC_NETWORK.keys())
+    co_occurrence = np.zeros((len(territories), len(territories)))
+    
+    for _, row in movements_data.iterrows():
+        for t1 in row['territorios']:
+            for t2 in row['territorios']:
+                if t1 != t2:
+                    i = territories.index(t1)
+                    j = territories.index(t2)
+                    co_occurrence[i][j] += 1
+                    co_occurrence[j][i] += 1
+    
+    fig = px.imshow(
+        co_occurrence,
+        x=territories,
+        y=territories,
+        title="Matriz de Co-ocorrência de Territórios"
+    )
+    st.plotly_chart(fig, use_container_width=True)
+
+# Assistente IA Tab
+with tabs[3]:
+    st.subheader("💬 Assistente Natura")
+    zaia_widget()
+
+# Studio Tab
+with tabs[4]:
+    st.subheader("Data Studio")
+    
+    analysis_type = st.selectbox(
+        "Tipo de Análise",
+        ["Análise Competitiva", "Território Deep Dive", "Tendências Emergentes"]
+    )
+    
+    if analysis_type == "Análise Competitiva":
+        st.markdown("### Análise Competitiva")
+        
+        # Métricas por empresa
+        for competitor in selected_companies:
+            comp_data = movements_data[movements_data['empresa'] == competitor]
+            
+            st.markdown(f"#### {competitor}")
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.metric("Total de Ações", len(comp_data))
+            with col2:
+                st.metric("Relevância Média", f"{comp_data['relevancia'].mean():.1f}")
+            with col3:
+                st.metric("Engajamento Total", f"{comp_data['engajamento'].sum():,}")
+            
+            # Gráfico de ações por território
+            territory_counts = pd.DataFrame([
+                {'territorio': t}
+                for _, row in comp_data.iterrows()
+                for t in row['territorios']
+            ])
+            
+            if not territory_counts.empty:
+                fig = px.bar(
+                    territory_counts['territorio'].value_counts().reset_index(),
+                    x='index',
+                    y='territorio',
+                    title=f"Ações por Território - {competitor}"
+                )
+                st.plotly_chart(fig, use_container_width=True)
+    
+    elif analysis_type == "Território Deep Dive":
+        st.markdown("### Análise de Território")
+        
+        selected_territory = st.selectbox(
+            "Selecione o Território",
+            list(SEMANTIC_NETWORK.keys())
+        )
+        
+        # Filtrar ações do território
+        territory_actions = movements_data[movements_data['territorios'].apply(lambda x: selected_territory in x)]
+        
+        # Métricas do território
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total de Ações", len(territory_actions))
+        with col2:
+            st.metric("Relevância Média", f"{territory_actions['relevancia'].mean():.1f}")
+        with col3:
+            st.metric("Engajamento Total", f"{territory_actions['engajamento'].sum():,}")
+        
+        # Timeline do território
+        fig = px.scatter(
+            territory_actions,
+            x='data',
+            y='empresa',
+            size='relevancia',
+            color='tipo',
+            title=f"Timeline de Ações - {selected_territory}"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Análise de palavras-chave
+        st.markdown("#### Palavras-chave Relacionadas")
+        st.write(f"Primárias: {', '.join(SEMANTIC_NETWORK[selected_territory]['primary'])}")
+        st.write(f"Relacionadas: {', '.join(SEMANTIC_NETWORK[selected_territory]['related'])}")
+    
+    else:  # Tendências Emergentes
+        st.markdown("### Tendências Emergentes")
+        
+        # Análise temporal de territórios
+        territory_trends = pd.DataFrame([
+            {'data': row['data'], 'territorio': t, 'relevancia': row['relevancia']}
+            for _, row in movements_data.iterrows()
+            for t in row['territorios']
+        ])
+        
+        # Agregar por semana
+        territory_trends['semana'] = territory_trends['data'].dt.isocalendar().week
+        weekly_trends = territory_trends.groupby(['semana', 'territorio'])['relevancia'].mean().reset_index()
+        
+        fig = px.line(
+            weekly_trends,
+            x='semana',
+            y='relevancia',
+            color='territorio',
+            title="Evolução de Relevância por Território"
+        )
+        st.plotly_chart(fig, use_container_width=True)
+        
+        # Identificar tendências emergentes
+        st.markdown("#### Tendências Identificadas")
+        
+        last_week = territory_trends['semana'].max()
+        previous_week = last_week - 1
+        
+        for territory in SEMANTIC_NETWORK.keys():
+            last_week_data = weekly_trends[
+                (weekly_trends['semana'] == last_week) &
+                (weekly_trends['territorio'] == territory)
+            ]
+            previous_week_data = weekly_trends[
+                (weekly_trends['semana'] == previous_week) &
+                (weekly_trends['territorio'] == territory)
+            ]
+            
+            if not last_week_data.empty and not previous_week_data.empty:
+                change = (
+                    last_week_data['relevancia'].iloc[0] -
+                    previous_week_data['relevancia'].iloc[0]
+                )
+                
+                if abs(change) >= 0.5:
+                    direction = "🔼" if change > 0 else "🔽"
+                    st.markdown(f"{direction} **{territory}**: Variação
