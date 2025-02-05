@@ -9,6 +9,13 @@ import numpy as np
 from collections import defaultdict
 import re
 from textblob import TextBlob
+import spacy
+from nltk.sentiment.vader import SentimentIntensityAnalyzer
+from sklearn.feature_extraction.text import TfidfVectorizer
+
+# Carregar modelo de SpaCy
+nlp = spacy.load("en_core_web_sm")
+sia = SentimentIntensityAnalyzer()
 
 # Configuração da página
 st.set_page_config(layout="wide", page_title="Plataforma IC Natura")
@@ -63,25 +70,39 @@ class SemanticAnalyzer:
     def __init__(self, semantic_network, action_types):
         self.semantic_network = semantic_network
         self.action_types = action_types
-        
+        self.vectorizer = TfidfVectorizer(vocabulary=self.build_vocabulary())
+
+    def build_vocabulary(self):
+        """Constrói um vocabulário a partir da rede semântica e tipos de ação"""
+        vocab = set()
+        for data in self.semantic_network.values():
+            vocab.update(data['primary'])
+            vocab.update(data['related'])
+        for data in self.action_types.values():
+            vocab.update(data['keywords'])
+        return list(vocab)
+
     def analyze_text(self, text):
         """Analisa texto e retorna classificações e territórios"""
-        text = text.lower()
-        blob = TextBlob(text)
+        text_lower = text.lower()
+        doc = nlp(text_lower)
         
         # Análise de territórios
         territory_scores = defaultdict(float)
         for territory, data in self.semantic_network.items():
-            primary_score = sum(word in text for word in data['primary']) * data['weight']
-            related_score = sum(word in text for word in data['related']) * data['weight'] * 0.7
+            primary_score = self.calculate_tfidf_score(text_lower, data['primary']) * data['weight']
+            related_score = self.calculate_tfidf_score(text_lower, data['related']) * data['weight'] * 0.7
             territory_scores[territory] = primary_score + related_score
         
         # Análise de tipo de ação
         action_scores = defaultdict(float)
         for action, data in self.action_types.items():
-            score = sum(word in text for word in data['keywords']) * data['weight']
+            score = self.calculate_tfidf_score(text_lower, data['keywords']) * data['weight']
             if score >= data['threshold']:
                 action_scores[action] = score
+        
+        # Análise de sentimento
+        sentiment = sia.polarity_scores(text_lower)['compound']
         
         # Identifica principais territórios e ação
         main_territories = [t for t, s in territory_scores.items() if s > 0.5]
@@ -90,13 +111,22 @@ class SemanticAnalyzer:
         return {
             'territories': main_territories,
             'action_type': main_action,
-            'sentiment': blob.sentiment.polarity,
+            'sentiment': sentiment,
             'relevance': max(action_scores.values()) if action_scores else 0.3
         }
+    
+    def calculate_tfidf_score(self, text, terms):
+        """Calcula a pontuação TF-IDF de um conjunto de termos em um texto"""
+        if not terms:
+            return 0.0
+        tfidf_matrix = self.vectorizer.fit_transform([text])
+        feature_index = self.vectorizer.vocabulary_
+        score = sum(tfidf_matrix[0, feature_index[term]] for term in terms if term in feature_index)
+        return score
 
+# Gera dados simulados
 def generate_mock_data():
     """Gera dados simulados enriquecidos"""
-    # Ações base
     actions = [
         "Lançamento de nova linha de skincare sustentável",
         "Campanha digital com influenciadores",
@@ -107,7 +137,6 @@ def generate_mock_data():
         "Sistema de refil para perfumes"
     ]
     
-    # Cria DataFrame
     data = []
     analyzer = SemanticAnalyzer(SEMANTIC_NETWORK, ACTION_TYPES)
     
@@ -464,3 +493,5 @@ with tabs[4]:
         st.plotly_chart(fig, use_container_width=True)
         
         # Análise de palavras-chave
+        st.markdown("#### Palavras-chave Relacionadas")
+        st.write(f"Primárias:
