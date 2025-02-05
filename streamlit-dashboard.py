@@ -500,4 +500,4 @@ with tabs[4]:
         
         # Análise temporal de territórios
         territory_trends = pd.DataFrame([
-            {'data': row['data'], 'territorio': t,
+            {'data': row['data'], 'territorio':
