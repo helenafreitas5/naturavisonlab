@@ -1,8 +1,6 @@
 streamlit
 pandas
+notion-client
+requests
 plotly
-networkx
-textblob
-spacy
-nltk
-scikit-learn
+python-dotenv
